@@ -2,7 +2,39 @@
 cinq-auditor-required-tags
 **************************
 
+===========
+Description
+===========
+
 This auditor reviews, alerts and potentially takes action on AWS objects that are found not to be compliant with the tagging requirements.
 
 Please check out the `README <https://github.com/RiotGames/cloud-inquisitor/blob/master/docs/backend/README.rst>`_ 
 for further details on the how ``cinq-auditor-required-tags`` works with further details on ``Cloud Inquisitor`` backend is built and what technologies we use.
+
+=====================
+Configuration Options
+=====================
+
++---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
+| Option name         | Default Value                             | Type   | Description                                                                 |
++=====================+===========================================+========+=============================================================================+
+| enabled             | False                                     | bool   | Enable the Reuiqred Tags auditor                                            |
++---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
+| interval            | 30                                        | int    | How often the auditor executes, in minutes                                  |
++---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
+| required_tags       | ['owner', 'accounting', 'name']           | arr-y  | List of required tags                                                       |
++---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
+| collect_only        | True                                      | bool   | Do not shutdown instances, only update caches                               |
++---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
+| permanent_recipient | []                                        | array  | List of email addresses to receive all alerts                               |
++---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
+| always_send_email   | True                                      | bool   | Send emails even in collect mode                                            |
++---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
+| email_subject       | EC2 Instances missing required tags       | string | Subject of the new issues email notifications                               |
++---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
+| email_subject_fixed | Fixed EC2 Instances missing required tags | array  | Domains to attempt to perform zone transfers for                            |
++---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
+| partial_owner_match | False                                     | bool   | Enable CloudFlare as a source for DNS records                               |
++---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
+| confirm_shutdown    | True                                      | bool   | Require manual confirmation before shutting down instances                  |
++---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
