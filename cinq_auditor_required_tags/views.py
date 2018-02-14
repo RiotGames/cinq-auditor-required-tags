@@ -2,9 +2,9 @@ import json
 from base64 import b64encode
 from collections import OrderedDict
 
-from cloud_inquisitor import InquisitorJSONEncoder
 from cloud_inquisitor.config import dbconfig
 from cloud_inquisitor.constants import ROLE_USER, HTTP, NS_AUDITOR_REQUIRED_TAGS
+from cloud_inquisitor.json_utils import InquisitorJSONEncoder
 from cloud_inquisitor.plugins import BaseView
 from cloud_inquisitor.plugins.types.issues import RequiredTagsIssue
 from cloud_inquisitor.schema import Account
