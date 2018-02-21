@@ -31,7 +31,7 @@ Configuration Options
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
 | email_subject_fixed | Fixed EC2 Instances missing required tags | array  | Domains to attempt to perform zone transfers for                            |
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
-| partial_owner_match | False                                     | bool   | Enable CloudFlare as a source for DNS records                               |
+| partial_owner_match | False                                     | bool   | Allow partial matches of the Owner tag                               |
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
 | confirm_shutdown    | True                                      | bool   | Require manual confirmation before shutting down instances                  |
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
