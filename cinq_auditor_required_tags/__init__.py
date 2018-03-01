@@ -40,7 +40,6 @@ class RequiredTagsAuditor(BaseAuditor):
     name = 'Required Tags Compliance'
     ns = NS_AUDITOR_REQUIRED_TAGS
     interval = dbconfig.get('interval', ns, 30)
-    enabled = dbconfig.get('enabled', ns, False)
     tracking_enabled = dbconfig.get('enabled', NS_GOOGLE_ANALYTICS, False)
     tracking_id = dbconfig.get('tracking_id', NS_GOOGLE_ANALYTICS)
     confirm_shutdown = dbconfig.get('confirm_shutdown', ns, True)
@@ -141,7 +140,7 @@ class RequiredTagsAuditor(BaseAuditor):
             send_email(
                 self.name,
                 self.dbconfig.get('from_address', NS_EMAIL),
-                (recipient,),
+                [recipient,],
                 self.subject_issues.format(data),
                 html_body=body,
                 message_uuid=message_uuid
@@ -158,7 +157,7 @@ class RequiredTagsAuditor(BaseAuditor):
             send_email(
                 self.name,
                 self.dbconfig.get('from_address', NS_EMAIL),
-                (recipient,),
+                [recipient,],
                 self.subject_fixed,
                 html_body=body,
                 message_uuid=message_uuid
