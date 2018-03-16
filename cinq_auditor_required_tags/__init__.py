@@ -218,7 +218,7 @@ class RequiredTagsAuditor(BaseAuditor):
 
                     instance.stop()
                     self.log.debug('Shutdown instance {}/{}'.format(
-                        issue.account.account_name,
+                        issue.instance.account.account_name,
                         issue.instance_id
                     ))
 
@@ -261,7 +261,7 @@ class RequiredTagsAuditor(BaseAuditor):
 
                     terminated_instances.setdefault(issue.instance.account, []).append(issue.instance.id)
                     self.log.debug('Terminated instance {}/{}'.format(
-                        issue.account.account_name,
+                        issue.instance.account.account_name,
                         issue.instance_id
                     ))
 
