@@ -1,19 +1,21 @@
-import urllib.parse
-import uuid
 from datetime import datetime, timedelta
 
 from cloud_inquisitor import get_aws_session
 from cloud_inquisitor.config import dbconfig, ConfigOption
-from cloud_inquisitor.constants import NS_AUDITOR_REQUIRED_TAGS, NS_GOOGLE_ANALYTICS, NS_EMAIL
+from cloud_inquisitor.constants import NS_AUDITOR_REQUIRED_TAGS, NS_GOOGLE_ANALYTICS
 from cloud_inquisitor.database import db
-from cloud_inquisitor.exceptions import SlackError
 from cloud_inquisitor.plugins import BaseAuditor
-from cloud_inquisitor.plugins.notifiers.email import send_email
-from cloud_inquisitor.plugins.notifiers.slack import SlackNotifier
 from cloud_inquisitor.plugins.types.issues import RequiredTagsIssue
 from cloud_inquisitor.plugins.types.resources import EC2Instance
 from cloud_inquisitor.schema import AuditLog, Account
-from cloud_inquisitor.utils import validate_email, get_template, merge_lists, get_resource_id
+from cloud_inquisitor.utils import (
+    validate_email,
+    get_template,
+    merge_lists,
+    get_resource_id,
+    send_notification,
+    NotificationContact
+)
 
 INTERVALS = (
     None,                   # 0, Compliant, no alert
@@ -68,7 +70,7 @@ class RequiredTagsAuditor(BaseAuditor):
         self.required_tags = self.dbconfig.get('required_tags', self.ns, ['owner', 'accounting', 'name'])
         self.collect_only = self.dbconfig.get('collect_only', self.ns, True)
         self.always_send_email = self.dbconfig.get('always_send_email', self.ns, False)
-        self.permanent_email = self.dbconfig.get('permanent_recipient', self.ns, [])
+        self.permanent_email = [NotificationContact('email', email) for email in self.dbconfig.get('permanent_recipient', self.ns, [])]
         self.subject_issues = self.dbconfig.get('email_subject', self.ns, 'EC2 Instances missing required tags')
         self.subject_fixed = self.dbconfig.get('email_subject_fixed', self.ns, 'Fixed EC2 Instances missing required tags')
         self.grace_period = self.dbconfig.get('grace_period', self.ns, 4)
@@ -77,7 +79,6 @@ class RequiredTagsAuditor(BaseAuditor):
     def run(self, *args, **kwargs):
         """Execute the auditor"""
         instances = self.update_cache()
-
         self.shutdown_instances()
         self.terminate_instances()
 
@@ -85,7 +86,7 @@ class RequiredTagsAuditor(BaseAuditor):
         for acct in instances:
             issues = instances[acct].get('issues', [])
             fixed = instances[acct].get('fixed', [])
-            recipients = acct.contacts
+            recipients = acct.get_contacts()
 
             if self.permanent_email:
                 if type(self.permanent_email) in (list, tuple):
@@ -93,14 +94,14 @@ class RequiredTagsAuditor(BaseAuditor):
                 else:
                     recipients.append(self.permanent_email)
 
-            if not self.collect_only or self.always_send_email:
+            if True or not self.collect_only or self.always_send_email:
                 for issue in issues:
                     for recipient in merge_lists(recipients, issue.instance.get_owner_emails()):
-                        notices.setdefault(recipient, {'issues': [], 'fixed': []})['issues'].append(issue)
+                        notices.setdefault(recipient.value, {'issues': [], 'fixed': [], 'contact': [recipient]})['issues'].append(issue)
 
                 for issue in fixed:
                     for recipient in merge_lists(recipients, issue.instance.get_owner_emails()):
-                        notices.setdefault(recipient, {'issues': [], 'fixed': []})['fixed'].append(issue)
+                        notices.setdefault(recipient.value, {'issues': [], 'fixed': [], 'contact': [recipient]})['fixed'].append(issue)
 
         self.notify(notices)
 
@@ -113,90 +114,33 @@ class RequiredTagsAuditor(BaseAuditor):
         Returns:
             `None`
         """
+        html_template_issue = get_template('required_tags_alert.html')
+        html_template_fixed = get_template('required_tags_fixed.html')
+
+        text_template_issue = get_template('required_tags_alert.txt')
+        text_template_fixed = get_template('required_tags_fixed.txt')
         for recipient, data in list(notices.items()):
-            if recipient.startswith('#'):
-                self.notify_slack(recipient, data)
-
-            elif recipient.find('@') >= 0:
-                self.notify_email(recipient, data)
-
-    def notify_email(self, recipient, data):
-        """Notify a recipient via. email.
-
-        Args:
-            recipient (`str`): Email address to notify
-            data (`dict`): Dictionary containing all the information about the notification
-
-        Returns:
-            `None`
-        """
-        if len(data['issues']) > 0:
-            tmpl = get_template('required_tags_alert.html')
-            message_uuid = urllib.parse.quote(str(uuid.uuid4()))
-            body = tmpl.render(
-                issues=data['issues']
-            )
-
-            send_email(
-                self.name,
-                self.dbconfig.get('from_address', NS_EMAIL),
-                [recipient,],
-                self.subject_issues.format(data),
-                html_body=body,
-                message_uuid=message_uuid
-            )
-
-        if len(data['fixed']) > 0:
-            tmpl = get_template('required_tags_fixed.html')
-
-            message_uuid = urllib.parse.quote(str(uuid.uuid4()))
-            body = tmpl.render(
-                fixed=data['fixed']
-            )
-
-            send_email(
-                self.name,
-                self.dbconfig.get('from_address', NS_EMAIL),
-                [recipient,],
-                self.subject_fixed,
-                html_body=body,
-                message_uuid=message_uuid
-            )
-
-    def notify_slack(self, recipient, data):
-        """Notify a recipient via. Slack
-
-        Args:
-            recipient (`str`): Slack channel to notify
-            data (`dict`): Dictionary containing all the information about the notification
-
-        Returns:
-            `None`
-        """
-        try:
             if len(data['issues']) > 0:
-                text_tmpl = get_template('required_tags_alert.txt')
-                message = text_tmpl.render(
-                    issues=data['issues']
-                )
-
-                SlackNotifier.send_message(
-                    recipient,
-                    message
+                body_html = html_template_issue.render(issues=data['issues'])
+                body_text = text_template_issue.render(issues=data['issues'])
+                send_notification(
+                    subsystem='Required Tags Compliance',
+                    recipients=data['contact'],
+                    subject=self.subject_issues.format(data),
+                    body_html=body_html,
+                    body_text=body_text
                 )
 
             if len(data['fixed']) > 0:
-                text_tmpl = get_template('required_tags_fixed.txt')
-                message = text_tmpl.render(
-                    issues=data['fixed']
+                body_html = html_template_fixed.render(issues=data['fixed'])
+                body_text = text_template_fixed.render(issues=data['fixed'])
+                send_notification(
+                    subsystem='Required Tags Compliance',
+                    recipients=data['contact'],
+                    subject=self.subject_fixed.format(data),
+                    body_html=body_html,
+                    body_text=body_text
                 )
-
-                SlackNotifier.send_message(
-                    recipient,
-                    message
-                )
-        except SlackError as ex:
-            self.log.error('Failed sending message to slack channel {}: {}'.format(recipient, ex))
 
     def shutdown_instances(self):
         """Shutdown instances that have been non-compliant for the configured amount of time. Returns a list of IDs of

@@ -1,4 +1,5 @@
 # Ignore caches, configs etc.
+__pycache__
 .idea
 *.swp
 .DS_Store
