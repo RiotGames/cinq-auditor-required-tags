@@ -121,8 +121,8 @@ class RequiredTagsAuditor(BaseAuditor):
         text_template_fixed = get_template('required_tags_fixed.txt')
         for recipient, data in list(notices.items()):
             if len(data['issues']) > 0:
-                body_html = html_template_issue.render(issues=data['issues'])
-                body_text = text_template_issue.render(issues=data['issues'])
+                body_html = html_template_issue.render(resources=data['issues'])
+                body_text = text_template_issue.render(resources=data['issues'])
                 send_notification(
                     subsystem='Required Tags Compliance',
                     recipients=data['contact'],
@@ -132,8 +132,8 @@ class RequiredTagsAuditor(BaseAuditor):
                 )
 
             if len(data['fixed']) > 0:
-                body_html = html_template_fixed.render(issues=data['fixed'])
-                body_text = text_template_fixed.render(issues=data['fixed'])
+                body_html = html_template_fixed.render(resources=data['fixed'])
+                body_text = text_template_fixed.render(resources=data['fixed'])
                 send_notification(
                     subsystem='Required Tags Compliance',
                     recipients=data['contact'],
