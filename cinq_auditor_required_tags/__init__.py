@@ -141,6 +141,7 @@ class RequiredTagsAuditor(BaseAuditor):
         return non_compliant_resources
 
     def get_resources(self):
+        num_hours_before_processing = 4
         known_resources = self.get_known_resources_missing_tags()
         existing_issues = RequiredTagsIssue.get_all().items()
         known_issues = []
@@ -160,7 +161,7 @@ class RequiredTagsAuditor(BaseAuditor):
         new_issues = {
             resource_id: resource
             for resource_id, resource in known_resources.items()
-            if ((datetime.now() - resource['resource'].launch_date).seconds//3600) >= 0
+            if ((datetime.now() - resource['resource'].launch_date).seconds//3600) >= num_hours_before_processing
         }
 
         db.session.commit()
