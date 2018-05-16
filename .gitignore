@@ -34,3 +34,8 @@ nosetests.xml
 AUTHORS
 ChangeLog
 dist
+
+# emacs
+\#.*
+.#*
+*~
