@@ -1,6 +1,9 @@
 import logging
+
 from cloud_inquisitor import get_aws_session
+from cloud_inquisitor.log import auditlog
 from cinq_auditor_required_tags.exceptions import ResourceKillError, ResourceStopError
+from cloud_inquisitor.constants import NS_AUDITOR_REQUIRED_TAGS
 
 
 logger = logging.getLogger(__name__)
@@ -14,7 +17,16 @@ def process_action(resource, action, resource_type):
             action_mapper[resource_type]['service_name'],
             region_name=resource.location
         )
-        return func_action(client, resource)
+        func_action(client, resource)
+        auditlog(
+            event='required_tags.{}.{}'.format(resource_type, action),
+            actor=NS_AUDITOR_REQUIRED_TAGS,
+            data={
+                'resource_id': resource.resource_id,
+                'account_name': resource.account.account_name,
+                'location': resource.location
+            }
+        )
 
 
 def stop_ec2_instance(client, resource):

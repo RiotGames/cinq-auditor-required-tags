@@ -108,7 +108,6 @@ class RequiredTagsAuditor(BaseAuditor):
         notifications = self.process_actions(actions)
         self.notify(notifications)
 
-
     def get_known_resources_missing_tags(self):
         non_compliant_resources = {}
         audited_types = dbconfig.get('audit_scope', NS_AUDITOR_REQUIRED_TAGS, {'enabled': []})['enabled']
@@ -121,11 +120,7 @@ class RequiredTagsAuditor(BaseAuditor):
             resources = filter(lambda resource_info: resource_info[0] in audited_types, resource_types.items())
             for resource_name, resource_class in resources:
                 for resource_id, resource in resource_class.get_all().items():
-                    if resource_id == 'i-0ddc8e0cc2af3c079':
-                        a = 5
-
                     missing_tags, notes = self.check_required_tags(resource)
-
                     if missing_tags:
                         # Not really a get, it generates a new resource ID
                         issue_id = get_resource_id('reqtag', resource_id)
