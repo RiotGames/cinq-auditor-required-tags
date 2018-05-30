@@ -76,7 +76,9 @@ class RequiredTagsAuditor(BaseAuditor):
         self.required_tags = dbconfig.get('required_tags', self.ns, ['owner', 'accounting', 'name'])
         self.collect_only = dbconfig.get('collect_only', self.ns, True)
         self.always_send_email = dbconfig.get('always_send_email', self.ns, False)
-        self.permanent_email = dbconfig.get('permanent_recipient', self.ns, [])
+        self.permanent_emails = [
+            {'type': 'email', 'value': contact} for contact in dbconfig.get('permanent_recipient', self.ns, [])
+        ]
         self.email_subject = dbconfig.get('email_subject', self.ns, 'Required tags audit notification')
         self.grace_period = dbconfig.get('grace_period', self.ns, 4)
         self.partial_owner_match = dbconfig.get('partial_owner_match', self.ns, True)
@@ -193,7 +195,7 @@ class RequiredTagsAuditor(BaseAuditor):
                     account_contacts.append({'type': 'email', 'value': resource_owner})
         except AttributeError:
             pass
-        return [{'type': 'email', 'value': contact} for contact in account_contacts]
+        return account_contacts
 
     def get_actions(self, issues):
         actions = []
@@ -347,7 +349,7 @@ class RequiredTagsAuditor(BaseAuditor):
                         ex
                     )
 
-                for owner in action['owners']:
+                for owner in action['owners'] + self.permanent_emails:
                     if owner['value'] not in notification_contacts:
                         contact = NotificationContact(type=owner['type'], value=owner['value'])
                         notification_contacts[owner['value']] = contact
