@@ -38,9 +38,8 @@ class RequiredInstanceTags(BaseView):
     def get(self):
         self.reqparse.add_argument('count', type=int, default=100)
         self.reqparse.add_argument('page', type=int, default=None)
-        self.reqparse.add_argument('accounts', type=str, default=None, action='append',)
-        self.reqparse.add_argument('regions', type=str, default=None, action='append',)
-        self.reqparse.add_argument('state', type=str, default=None)
+        self.reqparse.add_argument('accounts', type=str, default=None, action='append')
+        self.reqparse.add_argument('regions', type=str, default=None, action='append')
         args = self.reqparse.parse_args()
 
         required_tags = dbconfig.get('required_tags', NS_AUDITOR_REQUIRED_TAGS, ['owner', 'accounting', 'name']),
@@ -52,17 +51,14 @@ class RequiredInstanceTags(BaseView):
         if args['regions']:
             properties['location'] = args['regions']
 
-        if args['state']:
-            properties['state'] = args['state']
-
-        total_issues, instances = RequiredTagsIssue.search(
+        total_issues, issues = RequiredTagsIssue.search(
             limit=args['count'],
             page=args['page'],
             properties=properties
         )
 
         return self.make_response({
-            'issues': instances,
+            'issues': issues,
             'requiredTags': required_tags,
             'issueCount': total_issues
         })
@@ -94,22 +90,21 @@ class RequiredInstanceTagsExport(BaseView):
         if args['fileFormat'] == 'xlsx':
             data = OrderedDict()
             headers = [
-                'instanceId', 'accountName', 'regionName', 'lastChange',
-                'nextChange', 'shutdownOn', 'missingTags', 'notes', 'tags'
+                'resourceId', 'accountName', 'regionName', 'created',
+                'lastChange', 'missingTags', 'notes', 'tags'
             ]
             for issue in issues:
-                instance = issue.instance
-                sheet = '{} - {}'.format(instance.account.account_name, issue.location)
+                resource = issue.resource
+                sheet = '{} - {}'.format(resource.account.account_name, issue.location)
                 row = [
-                    instance.id,
-                    instance.account.account_name,
+                    resource.resource_id,
+                    resource.account.account_name,
                     issue.location,
+                    issue.created,
                     issue.last_change,
-                    issue.next_change,
-                    issue.shutdown_on,
                     ';'.join(issue.missing_tags),
                     ';'.join(issue.notes),
-                    ';'.join(['{}={}'.format(tag.key, tag.value) for tag in list(instance.tags)])
+                    ';'.join(['{}={}'.format(tag.key, tag.value) for tag in list(resource.tags)])
                 ]
 
                 if sheet in data:
@@ -124,15 +119,14 @@ class RequiredInstanceTagsExport(BaseView):
             )
         else:
             output = [{
-                'instanceId': issue.instance.id,
+                'resourceId': issue.resource.resource_id,
                 'missingTags': issue.missing_tags,
                 'notes': issue.notes,
                 'regionName': issue.location,
-                'accountName': issue.instance.account.account_name,
-                'tags': {tag.key: tag.value for tag in issue.instance.tags},
-                'lastChange': issue.last_change,
-                'nextChange': issue.next_change,
-                'shutdownOn': issue.shutdown_on
+                'accountName': issue.resource.account.account_name,
+                'tags': {tag.key: tag.value for tag in issue.resource.tags},
+                'created': issue.created,
+                'lastChange': issue.last_change
             } for issue in issues]
             response = Response(
                 response=b64encode(

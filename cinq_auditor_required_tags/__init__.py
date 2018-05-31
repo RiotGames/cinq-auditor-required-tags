@@ -63,7 +63,7 @@ class RequiredTagsAuditor(BaseAuditor):
             'audit_scope',
             # max_items is 99 here, but is pulled during runtime and adjusted to the
             #  max number of available resources it doesn't really matter what we put
-            {'enabled': [], 'available': [], 'max_items': 99, 'min_items': 0},
+            {'enabled': [], 'available': ['aws_ec2_instance'], 'max_items': 99, 'min_items': 0},
             'choice',
             'Select the services you would like to audit'
         )
