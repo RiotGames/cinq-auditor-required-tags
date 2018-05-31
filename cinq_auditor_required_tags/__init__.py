@@ -96,16 +96,18 @@ class RequiredTagsAuditor(BaseAuditor):
         known_issues, new_issues, fixed_issues = self.get_resources()
         known_issues += self.create_new_issues(new_issues)
         actions = [
-            *[{
-                'action': AuditActions.FIX,
-                'action_description': None,
-                'last_alert': issue.last_alert,
-                'issue': issue,
-                'resource': issue.resource,
-                'owners': self.get_contacts(issue),
-                'notes': issue.notes,
-                'missing_tags': issue.missing_tags
-            } for issue in fixed_issues],
+            *[
+                {
+                    'action': AuditActions.FIX,
+                    'action_description': None,
+                    'last_alert': issue.last_alert,
+                    'issue': issue,
+                    'resource': issue.resource,
+                    'owners': self.get_contacts(issue),
+                    'notes': issue.notes,
+                    'missing_tags': issue.missing_tags
+                } for issue in fixed_issues
+            ],
             *self.get_actions(known_issues)]
         notifications = self.process_actions(actions)
         self.notify(notifications)
@@ -113,8 +115,12 @@ class RequiredTagsAuditor(BaseAuditor):
     def get_known_resources_missing_tags(self):
         non_compliant_resources = {}
         audited_types = dbconfig.get('audit_scope', NS_AUDITOR_REQUIRED_TAGS, {'enabled': []})['enabled']
-        resource_types = {resource.resource_type: resource for resource in
-                          map(lambda plugin: plugin.load(), CINQ_PLUGINS['cloud_inquisitor.plugins.types']['plugins'])}
+        resource_types = {
+            resource.resource_type: resource for resource in map(
+                lambda plugin: plugin.load(),
+                CINQ_PLUGINS['cloud_inquisitor.plugins.types']['plugins']
+            )
+        }
 
         try:
             # resource_info is a tuple with the resource typename as [0] and the
@@ -186,6 +192,18 @@ class RequiredTagsAuditor(BaseAuditor):
             db.session.rollback()
 
     def get_contacts(self, issue):
+        """Returns a list of contacts for an issue
+
+        Args:
+            issue (:obj:`RequiredTagsIssue`): Issue record
+
+        Returns:
+            `list` of `dict`
+        """
+        # If the resources has been deleted, just return an empty list, to trigger issue deletion without notification
+        if not issue.resource:
+            return []
+
         account_contacts = issue.resource.account.contacts
         try:
             resource_owners = issue.resource.get_owner_emails()
@@ -198,6 +216,14 @@ class RequiredTagsAuditor(BaseAuditor):
         return account_contacts
 
     def get_actions(self, issues):
+        """Returns a list of actions to executed
+
+        Args:
+            issues (`list` of :obj:`RequiredTagsIssue`): List of issues
+
+        Returns:
+            `list` of `dict`
+        """
         actions = []
         try:
             for issue in issues:
@@ -210,8 +236,7 @@ class RequiredTagsAuditor(BaseAuditor):
         return actions
 
     def determine_alert(self, action_schedule, issue_creation_time, last_alert):
-        """
-        Determine if we need to trigger an alert
+        """Determine if we need to trigger an alert
 
         Args:
             action_schedule (`list`): A list contains the alert schedule
