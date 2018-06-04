@@ -2,7 +2,7 @@
 cinq-auditor-required-tags
 **************************
 
-Please open issues `in the Cloud-Inquisitor repository <https://github.com/RiotGames/cloud-inquisitor/issues/new?labels=cinq-auditor-required-tags>`_
+Please open issues in the `Cloud-Inquisitor <https://github.com/RiotGames/cloud-inquisitor/issues/new?labels=cinq-auditor-required-tags>`_ repository
 
 ===========
 Description
