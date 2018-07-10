@@ -319,7 +319,6 @@ class RequiredTagsAuditor(BaseAuditor):
                 action_item['action'] = AuditActions.IGNORE
 
         db.session.commit()
-        print(action_item)
         return action_item
 
     def process_actions(self, actions):
