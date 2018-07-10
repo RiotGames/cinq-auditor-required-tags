@@ -1,9 +1,13 @@
 from cloud_inquisitor.exceptions import InquisitorError
 
 
-class ResourceKillError(InquisitorError):
+class ResourceActionError(InquisitorError):
     pass
 
 
-class ResourceStopError(InquisitorError):
+class ResourceKillError(ResourceActionError):
+    pass
+
+
+class ResourceStopError(ResourceActionError):
     pass
