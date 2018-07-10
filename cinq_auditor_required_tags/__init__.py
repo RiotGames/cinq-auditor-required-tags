@@ -1,7 +1,10 @@
-import pytimeparse
 import time
-
+from contextlib import suppress
 from datetime import datetime
+
+import pytimeparse
+from cinq_auditor_required_tags.exceptions import ResourceKillError, ResourceStopError, ResourceActionError
+from cinq_auditor_required_tags.providers import process_action
 from cloud_inquisitor import CINQ_PLUGINS
 from cloud_inquisitor.config import dbconfig, ConfigOption
 from cloud_inquisitor.constants import NS_AUDITOR_REQUIRED_TAGS, NS_GOOGLE_ANALYTICS, NS_EMAIL
@@ -9,12 +12,10 @@ from cloud_inquisitor.database import db
 from cloud_inquisitor.plugins import BaseAuditor
 from cloud_inquisitor.plugins.types.issues import RequiredTagsIssue
 from cloud_inquisitor.utils import validate_email, get_resource_id, send_notification, get_template, NotificationContact
-from cinq_auditor_required_tags.providers import process_action
-from cinq_auditor_required_tags.exceptions import ResourceKillError, ResourceStopError
 
 
 class AuditActions:
-    IGNORE = 'INGORE'
+    IGNORE = 'IGNORE'
     FIX = 'FIX'
     ALERT = 'ALERT'
     STOP = 'STOP'
@@ -108,7 +109,8 @@ class RequiredTagsAuditor(BaseAuditor):
                     'missing_tags': issue.missing_tags
                 } for issue in fixed_issues
             ],
-            *self.get_actions(known_issues)]
+            *self.get_actions(known_issues)
+        ]
         notifications = self.process_actions(actions)
         self.notify(notifications)
 
@@ -123,8 +125,7 @@ class RequiredTagsAuditor(BaseAuditor):
         }
 
         try:
-            # resource_info is a tuple with the resource typename as [0] and the
-            #  resource class as [1]
+            # resource_info is a tuple with the resource typename as [0] and the resource class as [1]
             resources = filter(lambda resource_info: resource_info[0] in audited_types, resource_types.items())
             for resource_name, resource_class in resources:
                 for resource_id, resource in resource_class.get_all().items():
@@ -144,11 +145,11 @@ class RequiredTagsAuditor(BaseAuditor):
         return non_compliant_resources
 
     def get_resources(self):
-        num_hours_before_processing = 4
         known_resources = self.get_known_resources_missing_tags()
         existing_issues = RequiredTagsIssue.get_all().items()
         known_issues = []
         fixed_issues = []
+
         for existing_issue_id, existing_issue in existing_issues:
             # Check if the existing issue is still persists
             resource = known_resources.pop(existing_issue_id, None)
@@ -161,10 +162,10 @@ class RequiredTagsAuditor(BaseAuditor):
                 known_issues.append(existing_issue)
             else:
                 fixed_issues.append(existing_issue)
+
         new_issues = {
-            resource_id: resource
-            for resource_id, resource in known_resources.items()
-            if ((datetime.now() - resource['resource'].launch_date).seconds//3600) >= num_hours_before_processing
+            resource_id: resource for resource_id, resource in known_resources.items()
+                if ((datetime.now() - resource['resource'].launch_date).seconds//3600) >= self.grace_period
         }
 
         db.session.commit()
@@ -173,12 +174,11 @@ class RequiredTagsAuditor(BaseAuditor):
     def create_new_issues(self, new_issues):
         try:
             for non_compliant_resource in new_issues.values():
-                now = time.time()
                 properties = {
                     'resource_id': non_compliant_resource['resource_id'],
                     'account_id': non_compliant_resource['resource'].account_id,
                     'location': non_compliant_resource['resource'].location,
-                    'created': now,
+                    'created': time.time(),
                     'last_alert': '-1 seconds',
                     'missing_tags': non_compliant_resource['missing_tags'],
                     'notes': non_compliant_resource['notes'],
@@ -247,9 +247,8 @@ class RequiredTagsAuditor(BaseAuditor):
             (`None` or `str`)
             None if no alert should be sent. Otherwise return the alert we should send
         """
-
         issue_age = time.time() - issue_creation_time
-        alert_schedule_lookup = {pytimeparse.parse(time): time for time in action_schedule}
+        alert_schedule_lookup = {pytimeparse.parse(action_time): action_time for action_time in action_schedule}
         alert_schedule = sorted(alert_schedule_lookup.keys())
         last_alert_time = pytimeparse.parse(last_alert)
 
@@ -263,8 +262,7 @@ class RequiredTagsAuditor(BaseAuditor):
         """Determine the action we should take for the issue
 
         Args:
-            resource (`dict`):
-            existing_issue (`RequiredTagsIssue`):
+            issue: Issue to determine action for
 
         Returns:
              `dict`
@@ -295,13 +293,15 @@ class RequiredTagsAuditor(BaseAuditor):
             action_item['action'] = AuditActions.REMOVE
             action_item['action_description'] = 'Resource removed'
             action_item['last_alert'] = remove_schedule
-            issue.update({'last_alert': remove_schedule})
+            if issue.update({'last_alert': remove_schedule}):
+                db.session.add(issue.issue)
 
         elif stop_schedule and time_elapsed >= stop_schedule:
             action_item['action'] = AuditActions.STOP
             action_item['action_description'] = 'Resource stopped'
             action_item['last_alert'] = stop_schedule
-            issue.update({'last_alert': stop_schedule})
+            if issue.update({'last_alert': stop_schedule}):
+                db.session.add(issue.issue)
 
         else:
             alert_selection = self.determine_alert(
@@ -309,13 +309,16 @@ class RequiredTagsAuditor(BaseAuditor):
                 issue.get_property('created').value,
                 issue.get_property('last_alert').value
             )
-            if alert_selection is not None:
+            if alert_selection:
                 action_item['action'] = AuditActions.ALERT
                 action_item['action_description'] = '{} alert'.format(alert_selection)
                 action_item['last_alert'] = alert_selection
-                issue.update({'last_alert': alert_selection})
+                if issue.update({'last_alert': alert_selection}):
+                    db.session.add(issue.issue)
             else:
                 action_item['action'] = AuditActions.IGNORE
+
+        db.session.commit()
         return action_item
 
     def process_actions(self, actions):
@@ -334,61 +337,59 @@ class RequiredTagsAuditor(BaseAuditor):
             for action in actions:
                 resource = action['resource']
                 try:
-                    if action['action'] == AuditActions.REMOVE:
-                        process_action(resource, 'kill', self.resource_types[resource.resource_type_id])
-                        db.session.delete(action['issue'].issue)
+                    with suppress(ResourceActionError):
+                        if action['action'] == AuditActions.REMOVE:
+                            if process_action(resource, 'kill', self.resource_types[resource.resource_type_id]):
+                                db.session.delete(action['issue'].issue)
 
-                    elif action['action'] == AuditActions.STOP:
-                        process_action(resource, 'stop', self.resource_types[resource.resource_type_id])
-                        action['issue'].update({
-                            'missing_tags': action['missing_tags'],
-                            'notes': action['notes'],
-                            'last_alert': action['last_alert'],
-                            'state': action['action']
-                        })
+                        elif action['action'] == AuditActions.STOP:
+                            if process_action(resource, 'stop', self.resource_types[resource.resource_type_id]):
+                                action['issue'].update({
+                                    'missing_tags': action['missing_tags'],
+                                    'notes': action['notes'],
+                                    'last_alert': action['last_alert'],
+                                    'state': action['action']
+                                })
 
-                    elif action['action'] == AuditActions.FIX:
-                        db.session.delete(action['issue'].issue)
+                            else:
+                                # Resource is already stopped, so we are gonna skip the notification for it
+                                continue
 
-                    elif action['action'] == AuditActions.ALERT:
-                        action['issue'].update({
-                            'missing_tags': action['missing_tags'],
-                            'notes': action['notes'],
-                            'last_alert': action['last_alert'],
-                            'state': action['action']
-                        })
-                    db.session.commit()
-                except ResourceKillError as error:
-                    # Logging is handled in the resource kill method
-                    pass
-                except ResourceStopError as error:
-                    # Logging is handled in the resource stop method
-                    pass
+                        elif action['action'] == AuditActions.FIX:
+                            db.session.delete(action['issue'].issue)
+
+                        elif action['action'] == AuditActions.ALERT:
+                            action['issue'].update({
+                                'missing_tags': action['missing_tags'],
+                                'notes': action['notes'],
+                                'last_alert': action['last_alert'],
+                                'state': action['action']
+                            })
+                        db.session.commit()
+
+                        for owner in action['owners'] + self.permanent_emails:
+                            if owner['value'] not in notification_contacts:
+                                contact = NotificationContact(type=owner['type'], value=owner['value'])
+                                notification_contacts[owner['value']] = contact
+                                notices[contact] = {
+                                    'fixed': [],
+                                    'not_fixed': []
+                                }
+                            else:
+                                contact = notification_contacts[owner['value']]
+
+                            if action['action'] == AuditActions.FIX:
+                                notices[contact]['fixed'].append(action)
+                            else:
+                                notices[contact]['not_fixed'].append(action)
+
                 except Exception as ex:
-                    self.log.warning(
-                        'Unexpected error while processing resource. Resource ID: {}, Location: {}, Operation: {}, Error: {}'
-                    ).format(
+                    self.log.exception('Unexpected error while processing resource {}/{}'.format(
+                        action['resource']['resource'].account.account_name,
                         action['resource']['resource_id'],
-                        action['resource']['resource'].location,
                         action['resource'],
                         ex
-                    )
-
-                for owner in action['owners'] + self.permanent_emails:
-                    if owner['value'] not in notification_contacts:
-                        contact = NotificationContact(type=owner['type'], value=owner['value'])
-                        notification_contacts[owner['value']] = contact
-                        notices[contact] = {
-                            'fixed': [],
-                            'not_fixed': []
-                        }
-                    else:
-                        contact = notification_contacts[owner['value']]
-
-                    if action['action'] == AuditActions.FIX:
-                        notices[contact]['fixed'].append(action)
-                    else:
-                        notices[contact]['not_fixed'].append(action)
+                    ))
         finally:
             db.session.rollback()
 
