@@ -25,7 +25,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     setup_requires=['setuptools_scm'],
     install_requires=[
-        'cloud_inquisitor~=1.1.12',
+        'cloud_inquisitor~=2.0.0',
         'Flask~=0.12.2',
         'pytimeparse==1.1.7',
         'pyexcel==0.4.5',
