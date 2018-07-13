@@ -1,5 +1,7 @@
 import logging
 
+from cloud_inquisitor.plugins.types.accounts import AWSAccount
+
 from cinq_auditor_required_tags.exceptions import ResourceKillError, ResourceStopError
 from cloud_inquisitor import get_aws_session
 from cloud_inquisitor.constants import NS_AUDITOR_REQUIRED_TAGS
@@ -22,7 +24,7 @@ def process_action(resource, action, resource_type):
     """
     func_action = action_mapper[resource_type][action]
     if func_action:
-        session = get_aws_session(resource.account)
+        session = get_aws_session(AWSAccount(resource.account))
         client = session.client(
             action_mapper[resource_type]['service_name'],
             region_name=resource.location
@@ -111,13 +113,13 @@ def terminate_ec2_instance(client, resource):
 
     except Exception as error:
         logger.info('Failed to kill instance {}/{}/{}: {}'.format(
-            resource.account,
+            resource.account.account_name,
             resource.location,
             resource.resource_id,
             error
         ))
         raise ResourceKillError('Failed to kill instance {}/{}/{}: {}'.format(
-            resource.account,
+            resource.account.account_name,
             resource.location,
             resource.resource_id,
             error
