@@ -125,11 +125,49 @@ def terminate_ec2_instance(client, resource):
             error
         ))
 
+def delete_s3_bucket(client, resource):
+    try:
+        session = get_aws_session(resource.account)
+        bucket = session.resource('s3', resource.location).Bucket(resource.resource_id)
+
+        lifecyclePolicy = {'Rules': [
+            {'Status': 'Enabled',
+                'NoncurrentVersionExpiration': {u'NoncurrentDays': 1},
+                'Filter': {u'Prefix': ''},
+                'Expiration': {u'Days': 1},
+                'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 1},
+                'ID': 'cloudInquisitor'}]}
+
+        objects = list(bucket.objects.limit(count=1))
+        versions = list(bucket.object_versions.limit(count=1))
+        if not objects and not versions:
+            bucket.delete()
+            logger.info('Deleted s3 bucket {} in {}'.format(resource.resource_id, resource.account))
+
+        cinqPolicyApplied = False
+        for rule in bucket.LifecycleConfiguration().rules:
+            if rule['ID'] == 'cloudInquisitor':
+                cinqPolicyApplied = True
+        if not cinqPolicyApplied:
+            bucket.LifecycleConfiguration().put(lifecyclePolicy)
+            logger.info('Added policy to delete bucket contents in s3 bucket {} in {}'.format(resource.resource_id, resource.account))
+
+    except Exception as error:
+        logger.info('Failed to delete s3 bucket {} in {}'.format(resource.resource_id, resource.account))
+        raise ResourceKillError(
+            'Failed to delete s3 bucket {} in {}. Reason: {}'.format(resource.resource_id, resource.account, error)
+        )
+
 
 action_mapper = {
     'aws_ec2_instance': {
         'service_name': 'ec2',
         'stop': stop_ec2_instance,
         'kill': terminate_ec2_instance
+    },
+    'aws_s3_bucket': {
+        'service_name': 's3',
+        'stop': None,
+        'kill': 'delete_s3_bucket'
     }
 }
