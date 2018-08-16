@@ -101,7 +101,7 @@ def terminate_ec2_instance(client, resource):
         ))
 
         auditlog(
-            event='required_tags.ec2.stop',
+            event='required_tags.ec2.terminate',
             actor=NS_AUDITOR_REQUIRED_TAGS,
             data={
                 'resource_id': resource.resource_id,
