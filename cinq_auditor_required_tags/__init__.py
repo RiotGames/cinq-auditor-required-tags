@@ -3,23 +3,16 @@ from contextlib import suppress
 from datetime import datetime
 
 import pytimeparse
-from cinq_auditor_required_tags.exceptions import ResourceKillError, ResourceStopError, ResourceActionError
+from cinq_auditor_required_tags.exceptions import ResourceActionError
 from cinq_auditor_required_tags.providers import process_action
+
 from cloud_inquisitor import CINQ_PLUGINS
 from cloud_inquisitor.config import dbconfig, ConfigOption
-from cloud_inquisitor.constants import NS_AUDITOR_REQUIRED_TAGS, NS_GOOGLE_ANALYTICS, NS_EMAIL
+from cloud_inquisitor.constants import NS_AUDITOR_REQUIRED_TAGS, NS_GOOGLE_ANALYTICS, NS_EMAIL, AuditActions
 from cloud_inquisitor.database import db
 from cloud_inquisitor.plugins import BaseAuditor
 from cloud_inquisitor.plugins.types.issues import RequiredTagsIssue
 from cloud_inquisitor.utils import validate_email, get_resource_id, send_notification, get_template, NotificationContact
-
-
-class AuditActions:
-    IGNORE = 'IGNORE'
-    FIX = 'FIX'
-    ALERT = 'ALERT'
-    STOP = 'STOP'
-    REMOVE = 'REMOVE'
 
 
 class RequiredTagsAuditor(BaseAuditor):
@@ -165,7 +158,7 @@ class RequiredTagsAuditor(BaseAuditor):
 
         new_issues = {
             resource_id: resource for resource_id, resource in known_resources.items()
-                if ((datetime.now() - resource['resource'].launch_date).total_seconds() // 3600) >= self.grace_period
+                if ((datetime.utcnow() - resource['resource'].launch_date).total_seconds() // 3600) >= self.grace_period
         }
 
         db.session.commit()
@@ -289,7 +282,7 @@ class RequiredTagsAuditor(BaseAuditor):
         stop_schedule = pytimeparse.parse(issue_alert_schedule['stop'])
         remove_schedule = pytimeparse.parse(issue_alert_schedule['remove'])
 
-        if remove_schedule and issue.last_alert == stop_schedule and time_elapsed >= remove_schedule:
+        if remove_schedule and time_elapsed >= remove_schedule:
             action_item['action'] = AuditActions.REMOVE
             action_item['action_description'] = 'Resource removed'
             action_item['last_alert'] = remove_schedule
