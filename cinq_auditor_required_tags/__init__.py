@@ -158,7 +158,7 @@ class RequiredTagsAuditor(BaseAuditor):
 
         new_issues = {
             resource_id: resource for resource_id, resource in known_resources.items()
-                if ((datetime.utcnow() - resource['resource'].launch_date).total_seconds() // 3600) >= self.grace_period
+                if ((datetime.utcnow() - resource['resource'].resource_creation_date).total_seconds() // 3600) >= self.grace_period
         }
 
         db.session.commit()
