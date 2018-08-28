@@ -138,8 +138,8 @@ def delete_s3_bucket(client, resource):
                 {'Status': 'Enabled',
                  'NoncurrentVersionExpiration': {u'NoncurrentDays': 1},
                  'Filter': {u'Prefix': ''},
-                 'Expiration': {u'Days': 1},
-                 'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 1},
+                 'Expiration': {u'Days': 3},
+                 'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 3},
                  'ID': 'cloudInquisitor'}
             ]
         }
@@ -151,7 +151,7 @@ def delete_s3_bucket(client, resource):
                {'Sid': 'cinqDenyObjectUploads',
                 'Effect': 'Deny',
                 'Principal': '*',
-                'Action': 's3:PutObject',
+                'Action': ['s3:PutObject', 's3:GetObject'],
                 'Resource': 'arn:aws:s3:::{}/*'.format(resource.resource_id)
                 }
             ]
