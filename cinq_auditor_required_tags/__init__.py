@@ -11,6 +11,7 @@ from cloud_inquisitor.config import dbconfig, ConfigOption
 from cloud_inquisitor.constants import NS_AUDITOR_REQUIRED_TAGS, NS_GOOGLE_ANALYTICS, NS_EMAIL, AuditActions
 from cloud_inquisitor.database import db
 from cloud_inquisitor.plugins import BaseAuditor
+from cloud_inquisitor.plugins.types.enforcements import Enforcement
 from cloud_inquisitor.plugins.types.issues import RequiredTagsIssue
 from cloud_inquisitor.utils import validate_email, get_resource_id, send_notification, get_template, NotificationContact
 
@@ -329,14 +330,17 @@ class RequiredTagsAuditor(BaseAuditor):
         try:
             for action in actions:
                 resource = action['resource']
+                enforcement = Enforcement(resource.account.id, resource.id, action['action'], datetime.datetime.now())
                 try:
                     with suppress(ResourceActionError):
                         if action['action'] == AuditActions.REMOVE:
                             if process_action(resource, 'kill', self.resource_types[resource.resource_type_id]):
+                                db.session.add(enforcement)
                                 db.session.delete(action['issue'].issue)
 
                         elif action['action'] == AuditActions.STOP:
                             if process_action(resource, 'stop', self.resource_types[resource.resource_type_id]):
+                                db.session.add(enforcement)
                                 action['issue'].update({
                                     'missing_tags': action['missing_tags'],
                                     'notes': action['notes'],
