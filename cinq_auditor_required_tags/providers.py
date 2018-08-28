@@ -138,9 +138,22 @@ def delete_s3_bucket(client, resource):
                 {'Status': 'Enabled',
                  'NoncurrentVersionExpiration': {u'NoncurrentDays': 1},
                  'Filter': {u'Prefix': ''},
-                 'Expiration': {u'Days': 1},
-                 'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 1},
+                 'Expiration': {u'Days': 3},
+                 'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 3},
                  'ID': 'cloudInquisitor'}
+            ]
+        }
+
+        bucket_policy = {
+            'Version': '2012-10-17',
+            'Id': 'PutObjPolicy',
+            'Statement': [
+               {'Sid': 'cinqDenyObjectUploads',
+                'Effect': 'Deny',
+                'Principal': '*',
+                'Action': ['s3:PutObject', 's3:GetObject'],
+                'Resource': 'arn:aws:s3:::{}/*'.format(resource.resource_id)
+                }
             ]
         }
 
@@ -149,6 +162,16 @@ def delete_s3_bucket(client, resource):
         if not objects and not versions:
             bucket.delete()
             logger.info('Deleted s3 bucket {} in {}'.format(resource.resource_id, resource.account))
+            auditlog(
+                event='required_tags.s3.terminate',
+                actor=NS_AUDITOR_REQUIRED_TAGS,
+                data={
+                    'resource_id': resource.resource_id,
+                    'account_name': resource.account.account_name,
+                    'location': resource.location
+                }
+            )
+
         else:
             try:
                 rules = bucket.LifecycleConfiguration().rules
@@ -167,6 +190,14 @@ def delete_s3_bucket(client, resource):
                     resource.resource_id,
                     resource.account
                 ))
+
+            if not 'cinqDenyObjectUploads' in bucket.Policy().policy:
+                bucket.Policy().put(Policy=bucket_policy)
+                logger.info('Added policy to prevent putObject in s3 bucket {} in {}'.format(
+                    resource.resource_id,
+                    resource.account
+                 ))
+
     except Exception as error:
         logger.info('Failed to delete s3 bucket {} in {}'.format(resource.resource_id, resource.account))
         raise ResourceKillError(
