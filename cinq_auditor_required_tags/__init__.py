@@ -330,7 +330,16 @@ class RequiredTagsAuditor(BaseAuditor):
         try:
             for action in actions:
                 resource = action['resource']
-                enforcement = Enforcement(resource.account.id, resource.id, action['action'], datetime.datetime.now())
+                if resource.resource_type == 'aws_ec2_instance':
+                    metrics = {"instance_type": resource.instance_type, "public_ip": resource.public_ip}
+
+                elif resource.resource_type == 'aws_s3_bucket':
+                    metrics = {"website_enabled": resource.website_enabled}
+
+                else:
+                    metrics = {}
+
+                enforcement = Enforcement(resource.account.id, resource.id, action['action'], datetime.now(), metrics)
                 try:
                     with suppress(ResourceActionError):
                         if action['action'] == AuditActions.REMOVE:
