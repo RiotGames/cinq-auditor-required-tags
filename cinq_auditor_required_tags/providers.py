@@ -191,13 +191,19 @@ def delete_s3_bucket(client, resource):
                     resource.resource_id,
                     resource.account
                 ))
-
-            if not 'cinqDenyObjectUploads' in bucket.Policy().policy:
+            try:
+                current_bucket_policy = bucket.Policy().policy
+            except botocore.exceptions.ClientError:
+                if error.response['Error']['Code'] == 'NoSuchBucketPolicy':
+                    current_bucket_policy = 'missing'
+            
+            if not 'cinqDenyObjectUploads' in current_bucket_policy:
                 bucket.Policy().put(Policy=bucket_policy)
                 logger.info('Added policy to prevent putObject in s3 bucket {} in {}'.format(
                     resource.resource_id,
                     resource.account
                  ))
+            
             return False
 
     except Exception as error:
