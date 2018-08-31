@@ -171,6 +171,7 @@ def delete_s3_bucket(client, resource):
                     'location': resource.location
                 }
             )
+            return True
 
         else:
             try:
@@ -197,6 +198,7 @@ def delete_s3_bucket(client, resource):
                     resource.resource_id,
                     resource.account
                  ))
+            return False
 
     except Exception as error:
         logger.info('Failed to delete s3 bucket {} in {}'.format(resource.resource_id, resource.account))
