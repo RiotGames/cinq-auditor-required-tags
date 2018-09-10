@@ -334,45 +334,17 @@ class RequiredTagsAuditor(BaseAuditor):
         try:
             for action in actions:
                 resource = action['resource']
-                metrics = {}
-                self.log.info('Resource is {} {}'.format(resource, dir(resource)))
-<<<<<<< Updated upstream
-                if resource.resource_type_id == AWS_EC2_INSTANCE:
-                    instance_type = "Not Found"
-                    public_ip = "Not Found"
-                    for prop in resource.properties:
-                        if prop.name == "instance_type":
-                            instance_type = prop.value
-                        if prop.name == "public_ip":
-                            public_ip = prop.value
-                    metrics = {"instance_type": instance_type, "public_ip": public_ip}
 
-                elif resource.resource_type_id == AWS_S3_BUCKET:
-                    metrics = {'Unavailable': 'Unavailable'}
-                    for prop in resource.properties:
-                        if prop.name == "metrics":
-                            metrics = prop.value
-=======
->>>>>>> Stashed changes
+                self.log.info('Resource is {} {}'.format(resource, dir(resource)))
 
                 try:
                     with suppress(ResourceActionError):
                         if action['action'] == AuditActions.REMOVE:
                             if process_action(resource, 'kill', self.resource_types[resource.resource_type_id]):
-<<<<<<< Updated upstream
-                                Enforcement.create(resource.account_id, resource.resource_id, action['action'],
-                                                   datetime.now(), metrics)
-=======
->>>>>>> Stashed changes
                                 db.session.delete(action['issue'].issue)
 
                         elif action['action'] == AuditActions.STOP:
                             if process_action(resource, 'stop', self.resource_types[resource.resource_type_id]):
-<<<<<<< Updated upstream
-                                Enforcement.create(resource.account_id, resource.resource_id, action['action'],
-                                                   datetime.now(), metrics)
-=======
->>>>>>> Stashed changes
                                 action['issue'].update({
                                     'missing_tags': action['missing_tags'],
                                     'notes': action['notes'],
