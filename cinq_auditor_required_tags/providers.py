@@ -1,6 +1,7 @@
 import logging
 
 from botocore.exceptions import ClientError
+from datetime import datetime
 
 from cloud_inquisitor.plugins.types.accounts import AWSAccount
 
@@ -9,6 +10,7 @@ from cloud_inquisitor import get_aws_session
 from cloud_inquisitor.constants import NS_AUDITOR_REQUIRED_TAGS
 from cloud_inquisitor.log import auditlog
 from cloud_inquisitor.plugins.types.resources import EC2Instance
+from cloud_inquisitor.plugins.types.enforcements import Enforcement
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +54,20 @@ def stop_ec2_instance(client, resource):
     try:
         instance = EC2Instance.get(resource.resource_id)
         if instance.state not in ('stopped', 'terminated'):
+            instance_type = "Not Found"
+            public_ip = "Not Found"
+            for prop in resource.properties:
+                if prop.name == "instance_type":
+                    instance_type = prop.value
+                if prop.name == "public_ip":
+                    public_ip = prop.value
+
+            metrics = {"instance_type": instance_type, "public_ip": public_ip}
+
             client.stop_instances(InstanceIds=[resource.resource_id])
             logger.debug('Stopped instance {}/{}'.format(resource.account.account_name, resource.resource_id))
-
+            Enforcement.create(resource.account_id, resource.resource_id, 'STOP',
+                               datetime.now(), metrics)
             auditlog(
                 event='required_tags.ec2.stop',
                 actor=NS_AUDITOR_REQUIRED_TAGS,
@@ -95,13 +108,25 @@ def terminate_ec2_instance(client, resource):
     """
     # TODO: Implement disabling of TerminationProtection
     try:
+        # Gather instance metrics before termination
+        instance_type = "Not Found"
+        public_ip = "Not Found"
+        for prop in resource.properties:
+            if prop.name == "instance_type":
+                instance_type = prop.value
+            if prop.name == "public_ip":
+                public_ip = prop.value
+
+        metrics = {"instance_type": instance_type, "public_ip": public_ip}
+
         client.terminate_instances(InstanceIds=[resource.resource_id])
         logger.info('Terminated instance {}/{}/{}'.format(
             resource.account,
             resource.location,
             resource.resource_id
         ))
-
+        Enforcement.create(resource.account_id, resource.resource_id, 'TERMINATE',
+                           datetime.now(), metrics)
         auditlog(
             event='required_tags.ec2.terminate',
             actor=NS_AUDITOR_REQUIRED_TAGS,
@@ -148,20 +173,27 @@ def delete_s3_bucket(client, resource):
             'Version': '2012-10-17',
             'Id': 'PutObjPolicy',
             'Statement': [
-               {'Sid': 'cinqDenyObjectUploads',
-                'Effect': 'Deny',
-                'Principal': '*',
-                'Action': ['s3:PutObject', 's3:GetObject'],
-                'Resource': 'arn:aws:s3:::{}/*'.format(resource.resource_id)
-                }
+                {'Sid': 'cinqDenyObjectUploads',
+                 'Effect': 'Deny',
+                 'Principal': '*',
+                 'Action': ['s3:PutObject', 's3:GetObject'],
+                 'Resource': 'arn:aws:s3:::{}/*'.format(resource.resource_id)
+                 }
             ]
         }
+
+        metrics = {'Unavailable': 'Unavailable'}
+        for prop in resource.properties:
+            if prop.name == "metrics":
+                metrics = prop.value
 
         objects = list(bucket.objects.limit(count=1))
         versions = list(bucket.object_versions.limit(count=1))
         if not objects and not versions:
             bucket.delete()
             logger.info('Deleted s3 bucket {} in {}'.format(resource.resource_id, resource.account))
+            Enforcement.create(resource.account_id, resource.resource_id, 'DELETED',
+                               datetime.now(), metrics)
             auditlog(
                 event='required_tags.s3.terminate',
                 actor=NS_AUDITOR_REQUIRED_TAGS,
@@ -172,7 +204,10 @@ def delete_s3_bucket(client, resource):
                 }
             )
             return True
+<<<<<<< Updated upstream
           
+=======
+>>>>>>> Stashed changes
         else:
             try:
                 rules = bucket.LifecycleConfiguration().rules
@@ -186,28 +221,36 @@ def delete_s3_bucket(client, resource):
                 rules_exists = False
 
             if not rules_exists:
+                # Grab S3 Metrics before lifecycle policies start removing objects
+
                 bucket.LifecycleConfiguration().put(LifecycleConfiguration=lifecycle_policy)
                 logger.info('Added policy to delete bucket contents in s3 bucket {} in {}'.format(
                     resource.resource_id,
                     resource.account
                 ))
-            try:
-                current_bucket_policy = bucket.Policy().policy
-            except botocore.exceptions.ClientError:
-                if error.response['Error']['Code'] == 'NoSuchBucketPolicy':
-                    current_bucket_policy = 'missing'
-            
-            if not 'cinqDenyObjectUploads' in current_bucket_policy:
+                Enforcement.create(resource.account_id, resource.resource_id, 'LIFECYCLE_APPLIED',
+                                   datetime.now(), metrics)
+
+            if not 'cinqDenyObjectUploads' in bucket.Policy().policy:
                 bucket.Policy().put(Policy=bucket_policy)
                 logger.info('Added policy to prevent putObject in s3 bucket {} in {}'.format(
                     resource.resource_id,
                     resource.account
+<<<<<<< Updated upstream
                  ))
 
             return False
 
     except Exception as error:
         logger.info('Failed to delete s3 bucket {} in {}, error is {}'.format(resource.resource_id, resource.account, error))
+=======
+                ))
+            return False
+
+    except Exception as error:
+        logger.info(
+            'Failed to delete s3 bucket {} in {}, error is {}'.format(resource.resource_id, resource.account, error))
+>>>>>>> Stashed changes
         raise ResourceKillError(
             'Failed to delete s3 bucket {} in {}. Reason: {}'.format(resource.resource_id, resource.account, error)
         )

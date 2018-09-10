@@ -1,6 +1,5 @@
 import time
 from contextlib import suppress
-from datetime import datetime
 
 import pytimeparse
 from cinq_auditor_required_tags.exceptions import ResourceActionError
@@ -11,7 +10,6 @@ from cloud_inquisitor.config import dbconfig, ConfigOption
 from cloud_inquisitor.constants import NS_AUDITOR_REQUIRED_TAGS, NS_GOOGLE_ANALYTICS, NS_EMAIL, AuditActions
 from cloud_inquisitor.database import db
 from cloud_inquisitor.plugins import BaseAuditor
-from cloud_inquisitor.plugins.types.enforcements import Enforcement
 from cloud_inquisitor.plugins.types.issues import RequiredTagsIssue
 from cloud_inquisitor.utils import validate_email, get_resource_id, send_notification, get_template, NotificationContact
 
@@ -338,6 +336,7 @@ class RequiredTagsAuditor(BaseAuditor):
                 resource = action['resource']
                 metrics = {}
                 self.log.info('Resource is {} {}'.format(resource, dir(resource)))
+<<<<<<< Updated upstream
                 if resource.resource_type_id == AWS_EC2_INSTANCE:
                     instance_type = "Not Found"
                     public_ip = "Not Found"
@@ -353,19 +352,27 @@ class RequiredTagsAuditor(BaseAuditor):
                     for prop in resource.properties:
                         if prop.name == "metrics":
                             metrics = prop.value
+=======
+>>>>>>> Stashed changes
 
                 try:
                     with suppress(ResourceActionError):
                         if action['action'] == AuditActions.REMOVE:
                             if process_action(resource, 'kill', self.resource_types[resource.resource_type_id]):
+<<<<<<< Updated upstream
                                 Enforcement.create(resource.account_id, resource.resource_id, action['action'],
                                                    datetime.now(), metrics)
+=======
+>>>>>>> Stashed changes
                                 db.session.delete(action['issue'].issue)
 
                         elif action['action'] == AuditActions.STOP:
                             if process_action(resource, 'stop', self.resource_types[resource.resource_type_id]):
+<<<<<<< Updated upstream
                                 Enforcement.create(resource.account_id, resource.resource_id, action['action'],
                                                    datetime.now(), metrics)
+=======
+>>>>>>> Stashed changes
                                 action['issue'].update({
                                     'missing_tags': action['missing_tags'],
                                     'notes': action['notes'],
