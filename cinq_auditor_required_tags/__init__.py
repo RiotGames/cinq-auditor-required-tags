@@ -339,6 +339,8 @@ class RequiredTagsAuditor(BaseAuditor):
                 metrics = {}
                 self.log.info('Resource is {} {}'.format(resource, dir(resource)))
                 if resource.resource_type_id == AWS_EC2_INSTANCE:
+                    instance_type = "Not Found"
+                    public_ip = "Not Found"
                     for prop in resource.properties:
                         if prop.name == "instance_type":
                             instance_type = prop.value
@@ -347,6 +349,7 @@ class RequiredTagsAuditor(BaseAuditor):
                     metrics = {"instance_type": instance_type, "public_ip": public_ip}
 
                 elif resource.resource_type_id == AWS_S3_BUCKET:
+                    metrics = {'Unavailable': 'Unavailable'}
                     for prop in resource.properties:
                         if prop.name == "metrics":
                             metrics = prop.value
