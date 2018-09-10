@@ -130,7 +130,7 @@ def terminate_ec2_instance(client, resource):
 
 def delete_s3_bucket(client, resource):
     try:
-        session = get_aws_session(resource.account)
+        session = get_aws_session(AWSAccount(resource.account))
         bucket = session.resource('s3', resource.location).Bucket(resource.resource_id)
 
         lifecycle_policy = {
@@ -171,7 +171,7 @@ def delete_s3_bucket(client, resource):
                     'location': resource.location
                 }
             )
-
+            return True
         else:
             try:
                 rules = bucket.LifecycleConfiguration().rules
@@ -197,9 +197,10 @@ def delete_s3_bucket(client, resource):
                     resource.resource_id,
                     resource.account
                  ))
+            return False
 
     except Exception as error:
-        logger.info('Failed to delete s3 bucket {} in {}'.format(resource.resource_id, resource.account))
+        logger.info('Failed to delete s3 bucket {} in {}, error is {}'.format(resource.resource_id, resource.account, error))
         raise ResourceKillError(
             'Failed to delete s3 bucket {} in {}. Reason: {}'.format(resource.resource_id, resource.account, error)
         )
