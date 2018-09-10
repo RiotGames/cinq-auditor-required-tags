@@ -204,10 +204,7 @@ def delete_s3_bucket(client, resource):
                 }
             )
             return True
-<<<<<<< Updated upstream
-          
-=======
->>>>>>> Stashed changes
+
         else:
             try:
                 rules = bucket.LifecycleConfiguration().rules
@@ -236,21 +233,14 @@ def delete_s3_bucket(client, resource):
                 logger.info('Added policy to prevent putObject in s3 bucket {} in {}'.format(
                     resource.resource_id,
                     resource.account
-<<<<<<< Updated upstream
                  ))
 
             return False
 
     except Exception as error:
-        logger.info('Failed to delete s3 bucket {} in {}, error is {}'.format(resource.resource_id, resource.account, error))
-=======
-                ))
-            return False
-
-    except Exception as error:
         logger.info(
             'Failed to delete s3 bucket {} in {}, error is {}'.format(resource.resource_id, resource.account, error))
->>>>>>> Stashed changes
+
         raise ResourceKillError(
             'Failed to delete s3 bucket {} in {}. Reason: {}'.format(resource.resource_id, resource.account, error)
         )
