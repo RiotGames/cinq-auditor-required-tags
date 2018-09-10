@@ -1,6 +1,5 @@
 import time
 from contextlib import suppress
-from datetime import datetime
 
 import pytimeparse
 from cinq_auditor_required_tags.exceptions import ResourceActionError
@@ -11,7 +10,6 @@ from cloud_inquisitor.config import dbconfig, ConfigOption
 from cloud_inquisitor.constants import NS_AUDITOR_REQUIRED_TAGS, NS_GOOGLE_ANALYTICS, NS_EMAIL, AuditActions
 from cloud_inquisitor.database import db
 from cloud_inquisitor.plugins import BaseAuditor
-from cloud_inquisitor.plugins.types.enforcements import Enforcement
 from cloud_inquisitor.plugins.types.issues import RequiredTagsIssue
 from cloud_inquisitor.utils import validate_email, get_resource_id, send_notification, get_template, NotificationContact
 
@@ -113,9 +111,9 @@ class RequiredTagsAuditor(BaseAuditor):
         audited_types = dbconfig.get('audit_scope', NS_AUDITOR_REQUIRED_TAGS, {'enabled': []})['enabled']
         resource_types = {
             resource.resource_type: resource for resource in map(
-                lambda plugin: plugin.load(),
-                CINQ_PLUGINS['cloud_inquisitor.plugins.types']['plugins']
-            )
+            lambda plugin: plugin.load(),
+            CINQ_PLUGINS['cloud_inquisitor.plugins.types']['plugins']
+        )
         }
 
         try:
@@ -159,7 +157,9 @@ class RequiredTagsAuditor(BaseAuditor):
 
         new_issues = {
             resource_id: resource for resource_id, resource in known_resources.items()
-                if ((datetime.utcnow() - resource['resource'].resource_creation_date).total_seconds() // 3600) >= self.grace_period
+            if
+            ((datetime.utcnow() - resource[
+                'resource'].resource_creation_date).total_seconds() // 3600) >= self.grace_period
         }
 
         db.session.commit()
@@ -179,9 +179,12 @@ class RequiredTagsAuditor(BaseAuditor):
                     'resource_type': non_compliant_resource['resource'].resource_name
                 }
                 issue = RequiredTagsIssue.create(non_compliant_resource['issue_id'], properties=properties)
+                self.log.info('Trying to add new issue / {} {}'.format(properties['resource_id'], str(issue)))
                 db.session.add(issue.issue)
                 db.session.commit()
                 yield issue
+        except Exception as e:
+            self.log.info('Couldnt add new issue / {}'.format(e))
         finally:
             db.session.rollback()
 
@@ -326,30 +329,50 @@ class RequiredTagsAuditor(BaseAuditor):
         """
         notices = {}
         notification_contacts = {}
-
+        AWS_EC2_INSTANCE = 1
+        AWS_S3_BUCKET = 5
         try:
             for action in actions:
                 resource = action['resource']
-                if resource.resource_type == 'aws_ec2_instance':
-                    metrics = {"instance_type": resource.instance_type, "public_ip": resource.public_ip}
+                metrics = {}
+                self.log.info('Resource is {} {}'.format(resource, dir(resource)))
+<<<<<<< Updated upstream
+                if resource.resource_type_id == AWS_EC2_INSTANCE:
+                    instance_type = "Not Found"
+                    public_ip = "Not Found"
+                    for prop in resource.properties:
+                        if prop.name == "instance_type":
+                            instance_type = prop.value
+                        if prop.name == "public_ip":
+                            public_ip = prop.value
+                    metrics = {"instance_type": instance_type, "public_ip": public_ip}
 
-                elif resource.resource_type == 'aws_s3_bucket':
-                    metrics = {"website_enabled": resource.website_enabled}
+                elif resource.resource_type_id == AWS_S3_BUCKET:
+                    metrics = {'Unavailable': 'Unavailable'}
+                    for prop in resource.properties:
+                        if prop.name == "metrics":
+                            metrics = prop.value
+=======
+>>>>>>> Stashed changes
 
-                else:
-                    metrics = {}
-
-                enforcement = Enforcement(resource.account.id, resource.id, action['action'], datetime.now(), metrics)
                 try:
                     with suppress(ResourceActionError):
                         if action['action'] == AuditActions.REMOVE:
                             if process_action(resource, 'kill', self.resource_types[resource.resource_type_id]):
-                                db.session.add(enforcement)
+<<<<<<< Updated upstream
+                                Enforcement.create(resource.account_id, resource.resource_id, action['action'],
+                                                   datetime.now(), metrics)
+=======
+>>>>>>> Stashed changes
                                 db.session.delete(action['issue'].issue)
 
                         elif action['action'] == AuditActions.STOP:
                             if process_action(resource, 'stop', self.resource_types[resource.resource_type_id]):
-                                db.session.add(enforcement)
+<<<<<<< Updated upstream
+                                Enforcement.create(resource.account_id, resource.resource_id, action['action'],
+                                                   datetime.now(), metrics)
+=======
+>>>>>>> Stashed changes
                                 action['issue'].update({
                                     'missing_tags': action['missing_tags'],
                                     'notes': action['notes'],
@@ -390,9 +413,9 @@ class RequiredTagsAuditor(BaseAuditor):
                                 notices[contact]['not_fixed'].append(action)
 
                 except Exception as ex:
-                    self.log.exception('Unexpected error while processing resource {}/{}'.format(
-                        action['resource']['resource'].account.account_name,
-                        action['resource']['resource_id'],
+                    self.log.exception('Unexpected error while processing resource {}/{}/{}/{}'.format(
+                        action['resource'].account.account_name,
+                        action['resource'].resource_id,
                         action['resource'],
                         ex
                     ))
