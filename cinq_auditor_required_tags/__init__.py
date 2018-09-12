@@ -330,13 +330,9 @@ class RequiredTagsAuditor(BaseAuditor):
         """
         notices = {}
         notification_contacts = {}
-        AWS_EC2_INSTANCE = 1
-        AWS_S3_BUCKET = 5
         try:
             for action in actions:
                 resource = action['resource']
-
-                self.log.info('Resource is {} {}'.format(resource, dir(resource)))
 
                 try:
                     with suppress(ResourceActionError):

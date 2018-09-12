@@ -153,7 +153,7 @@ def terminate_ec2_instance(client, resource):
         ))
 
 
-def delete_s3_bucket(client, resource):
+def delete_s3_bucket(resource):
     try:
         session = get_aws_session(AWSAccount(resource.account))
         bucket = session.resource('s3', resource.location).Bucket(resource.resource_id)
@@ -217,31 +217,42 @@ def delete_s3_bucket(client, resource):
             except ClientError:
                 rules_exists = False
 
-            if not rules_exists:
-                # Grab S3 Metrics before lifecycle policies start removing objects
+            try:
+                if not rules_exists:
+                    # Grab S3 Metrics before lifecycle policies start removing objects
 
-                bucket.LifecycleConfiguration().put(LifecycleConfiguration=lifecycle_policy)
-                logger.info('Added policy to delete bucket contents in s3 bucket {} in {}'.format(
-                    resource.resource_id,
-                    resource.account
-                ))
-                Enforcement.create(resource.account_id, resource.resource_id, 'LIFECYCLE_APPLIED',
-                                   datetime.now(), metrics)
+                    bucket.LifecycleConfiguration().put(LifecycleConfiguration=lifecycle_policy)
+                    logger.info('Added policy to delete bucket contents in s3 bucket {} in {}'.format(
+                        resource.resource_id,
+                        resource.account
+                    ))
+                    Enforcement.create(resource.resource_id, resource.account_id, 'LIFECYCLE_APPLIED',
+                                       datetime.now(), metrics)
+
+            except ClientError as error:
+                logger.error('Problem applying the lifcycle configuration to bucket {} / account {} / {}'
+                             .format(resource.resource_id, resource.account_id, error.response['Error']['Code']))
 
             try:
                 current_bucket_policy = bucket.Policy().policy
-            except botocore.exceptions.ClientError:	
-                if error.response['Error']['Code'] == 'NoSuchBucketPolicy':	           
-                    current_bucket_policy = 'missing'
-            
-            if not 'cinqDenyObjectUploads' in current_bucket_policy:
-                bucket.Policy().put(Policy=bucket_policy)
-                logger.info('Added policy to prevent putObject in s3 bucket {} in {}'.format(
-                    resource.resource_id,
-                    resource.account
-                 ))
 
-            return False
+            except ClientError as error:
+                if error.response['Error']['Code'] == 'NoSuchBucketPolicy':
+                    current_bucket_policy = 'missing'
+
+            try:
+                if not 'cinqDenyObjectUploads' in current_bucket_policy:
+                    bucket.Policy().put(Policy=bucket_policy)
+                    logger.info('Added policy to prevent putObject in s3 bucket {} in {}'.format(
+                        resource.resource_id,
+                        resource.account
+                    ))
+
+                return False
+
+            except ClientError as error:
+                logger.error('Problem applying the bucket policy to bucket {} / account {} / {}'
+                             .format(resource.resource_id, resource.account_id, error.response['Error']['Code']))
 
     except Exception as error:
         logger.info(
