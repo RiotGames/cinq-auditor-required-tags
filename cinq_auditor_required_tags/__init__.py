@@ -42,12 +42,8 @@ class RequiredTagsAuditor(BaseAuditor):
                 '*': {
                     'alert': ['0 seconds', '3 weeks', '27 days'],
                     'stop': '4 weeks',
-                    'remove': '12 weeks'
-                },
-                'aws_ec2_instance': {
-                    'alert': ['0 seconds', '3 weeks', '27 days'],
-                    'stop': '4 weeks',
-                    'remove': '12 weeks'
+                    'remove': '12 weeks',
+                    'scope': ['*']
                 }
             },
             'json',
@@ -287,7 +283,10 @@ class RequiredTagsAuditor(BaseAuditor):
         stop_schedule = pytimeparse.parse(issue_alert_schedule['stop'])
         remove_schedule = pytimeparse.parse(issue_alert_schedule['remove'])
 
-        if remove_schedule and time_elapsed >= remove_schedule:
+        target_accounts = issue_alert_schedule['scope']
+        if not (issue.resource.account.account_name in target_accounts or '*' in target_accounts):
+            action_item['action'] = AuditActions.IGNORE
+        elif remove_schedule and time_elapsed >= remove_schedule:
             action_item['action'] = AuditActions.REMOVE
             action_item['action_description'] = 'Resource removed'
             action_item['last_alert'] = remove_schedule

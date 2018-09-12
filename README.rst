@@ -43,7 +43,7 @@ Configuration Options
 | required_tags       | ['owner', 'accounting', 'name']           | array  | List of required tags                                                       |
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
 
-alert_settings are specified as follows:
+Sample alert_settings are specified as follows:
 
 .. code-block:: json
 
@@ -55,7 +55,8 @@ alert_settings are specified as follows:
                 "60 seconds"
             ],
             "stop": "10 minutes",
-            "remove": "20 minutes"
+            "remove": "20 minutes",
+            "scope": ["*"]
         },
         "aws_ec2_instance": {
             "alert": [
@@ -64,6 +65,7 @@ alert_settings are specified as follows:
                 "60 seconds"
             ],
             "stop": "10 minutes",
-            "remove": "20 minutes"
+            "remove": "20 minutes",
+            "scope": ["enabled-account-1", "enabled-account-2"]
         }
     }
