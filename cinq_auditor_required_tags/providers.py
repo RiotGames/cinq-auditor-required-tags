@@ -153,7 +153,7 @@ def terminate_ec2_instance(client, resource):
         ))
 
 
-def delete_s3_bucket(resource):
+def delete_s3_bucket(client, resource):
     try:
         session = get_aws_session(AWSAccount(resource.account))
         bucket = session.resource('s3', resource.location).Bucket(resource.resource_id)
