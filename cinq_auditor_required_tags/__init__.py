@@ -75,7 +75,6 @@ class RequiredTagsAuditor(BaseAuditor):
         self.audit_ignore_tag = dbconfig.get('audit_ignore_tag', NS_AUDITOR_REQUIRED_TAGS)
         self.alert_schedule = dbconfig.get('alert_settings', NS_AUDITOR_REQUIRED_TAGS)
         self.audited_types = dbconfig.get('audit_scope', NS_AUDITOR_REQUIRED_TAGS)['enabled']
-        self.audit_ignore_tag = dbconfig.get('audit_ignore_tag', NS_AUDITOR_REQUIRED_TAGS)
         self.email_from_address = dbconfig.get('from_address', NS_EMAIL)
         self.resource_types = {
             resource_type.resource_type_id: resource_type.resource_type
@@ -116,7 +115,7 @@ class RequiredTagsAuditor(BaseAuditor):
             resources = filter(lambda resource_info: resource_info[0] in audited_types, resource_types.items())
             for resource_name, resource_class in resources:
                 for resource_id, resource in resource_class.get_all().items():
-                    missing_tags, notes = self.check_required_tags(resource)
+                    missing_tags, notes = self.check_required_tags_compliance(resource)
                     if missing_tags:
                         # Not really a get, it generates a new resource ID
                         issue_id = get_resource_id('reqtag', resource_id)
@@ -150,12 +149,7 @@ class RequiredTagsAuditor(BaseAuditor):
             else:
                 fixed_issues.append(existing_issue)
 
-        new_issues = {
-            resource_id: resource for resource_id, resource in known_resources.items()
-            if
-            ((datetime.utcnow() - resource[
-                'resource'].resource_creation_date).total_seconds() // 3600) >= self.grace_period
-        }
+        new_issues = {resource_id: resource for resource_id, resource in known_resources.items()}
 
         db.session.commit()
         return known_issues, new_issues, fixed_issues
@@ -281,10 +275,7 @@ class RequiredTagsAuditor(BaseAuditor):
         stop_schedule = pytimeparse.parse(issue_alert_schedule['stop'])
         remove_schedule = pytimeparse.parse(issue_alert_schedule['remove'])
 
-        target_accounts = issue_alert_schedule['scope']
-        if not (issue.resource.account.account_name in target_accounts or '*' in target_accounts):
-            action_item['action'] = AuditActions.IGNORE
-        elif remove_schedule and time_elapsed >= remove_schedule:
+        if remove_schedule and time_elapsed >= remove_schedule:
             action_item['action'] = AuditActions.REMOVE
             action_item['action_description'] = 'Resource removed'
             action_item['last_alert'] = remove_schedule
@@ -390,8 +381,8 @@ class RequiredTagsAuditor(BaseAuditor):
 
         return notices
 
-    def check_required_tags(self, resource):
-        """Check whether a resource is tag compliance
+    def check_required_tags_compliance(self, resource):
+        """Check whether a resource is compliance
 
         Args:
             resource: A single resource
@@ -405,8 +396,20 @@ class RequiredTagsAuditor(BaseAuditor):
         notes = []
         resource_tags = {tag.key.lower(): tag.value for tag in resource.tags}
 
+        # Do not audit this resource if it is not in the Account scope
+        if resource.resource_type in self.alert_schedule:
+            target_accounts = self.alert_schedule[resource.resource_type]['scope']
+        else:
+            target_accounts = self.alert_schedule['*']['scope']
+        if not (resource.account.account_name in target_accounts or '*' in target_accounts):
+            return missing_tags, notes
+
         # Do not audit this resource if the ignore tag was set
         if self.audit_ignore_tag.lower() in resource_tags:
+            return missing_tags, notes
+
+        # Do not audit this resource if it is still in grace period
+        if (datetime.utcnow() - resource.resource_creation_date).total_seconds() // 3600 < self.grace_period:
             return missing_tags, notes
 
         # Check if the resource is missing required tags
