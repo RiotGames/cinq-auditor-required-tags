@@ -241,7 +241,7 @@ def delete_s3_bucket(client, resource):
                     current_bucket_policy = 'missing'
 
             try:
-                if not 'cinqDenyObjectUploads' in current_bucket_policy:
+                if 'cinqDenyObjectUploads' not in current_bucket_policy:
                     bucket.Policy().put(Policy=bucket_policy)
                     logger.info('Added policy to prevent putObject in s3 bucket {} in {}'.format(
                         resource.resource_id,
