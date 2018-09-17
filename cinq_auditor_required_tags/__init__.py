@@ -106,12 +106,10 @@ class RequiredTagsAuditor(BaseAuditor):
     def get_known_resources_missing_tags(self):
         non_compliant_resources = {}
         audited_types = dbconfig.get('audit_scope', NS_AUDITOR_REQUIRED_TAGS, {'enabled': []})['enabled']
-        resource_types = {
-            resource.resource_type: resource for resource in map(
+        resource_types = {resource.resource_type: resource for resource in map(
             lambda plugin: plugin.load(),
             CINQ_PLUGINS['cloud_inquisitor.plugins.types']['plugins']
-        )
-        }
+        )}
 
         try:
             # resource_info is a tuple with the resource typename as [0] and the resource class as [1]
@@ -181,7 +179,7 @@ class RequiredTagsAuditor(BaseAuditor):
                 db.session.commit()
                 yield issue
         except Exception as e:
-            self.log.info('Couldnt add new issue / {}'.format(e))
+            self.log.info('Could not add new issue / {}'.format(e))
         finally:
             db.session.rollback()
 
