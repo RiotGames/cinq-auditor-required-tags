@@ -26,24 +26,13 @@ class RequiredTagsAuditor(BaseAuditor):
     collect_only = None
     start_delay = 0
     options = (
-        ConfigOption('enabled', False, 'bool', 'Enable the Required Tags auditor'),
-        ConfigOption('interval', 30, 'int', 'How often the auditor executes, in minutes.'),
-        ConfigOption('required_tags', ['owner', 'accounting', 'name'], 'array', 'List of required tags'),
-        ConfigOption('collect_only', True, 'bool', 'Do not shutdown instances, only update caches'),
-        ConfigOption('permanent_recipient', [], 'array', 'List of email addresses to receive all alerts'),
-        ConfigOption('always_send_email', True, 'bool', 'Send emails even in collect mode'),
-        ConfigOption('email_subject', 'Required tags audit notification', 'string',
-                     'Subject of the email notification'),
-        ConfigOption('partial_owner_match', True, 'bool', 'Allow partial matches of the Owner tag'),
-        ConfigOption('audit_ignore_tag', 'cinq_ignore', 'string', 'Do not audit resources have this tag set'),
-        ConfigOption('confirm_shutdown', True, 'bool', 'Require manual confirmation before shutting down instances'),
         ConfigOption(
             'alert_settings', {
                 '*': {
                     'alert': ['0 seconds', '3 weeks', '27 days'],
                     'stop': '4 weeks',
                     'remove': '12 weeks',
-                    'scope': ['*']
+                    'scope': []
                 }
             },
             'json',
@@ -56,7 +45,21 @@ class RequiredTagsAuditor(BaseAuditor):
             {'enabled': [], 'available': ['aws_ec2_instance'], 'max_items': 99, 'min_items': 0},
             'choice',
             'Select the services you would like to audit'
-        )
+        ),
+        ConfigOption('audit_ignore_tag', 'cinq_ignore', 'string', 'Do not audit resources have this tag set'),
+        ConfigOption('always_send_email', True, 'bool', 'Send emails even in collect mode'),
+        ConfigOption('collect_only', True, 'bool', 'Do not shutdown instances, only update caches'),
+        ConfigOption('confirm_shutdown', True, 'bool', 'Require manual confirmation before shutting down instances'),
+        ConfigOption('email_subject', 'Required tags audit notification', 'string',
+                     'Subject of the email notification'),
+        ConfigOption('enabled', False, 'bool', 'Enable the Required Tags auditor'),
+        ConfigOption('grace_period', 4, 'int', 'Only audit resources X minutes after being created'),
+        ConfigOption('interval', 30, 'int', 'How often the auditor executes, in minutes.'),
+        ConfigOption('partial_owner_match', True, 'bool', 'Allow partial matches of the Owner tag'),
+        ConfigOption('permanent_recipient', [], 'array', 'List of email addresses to receive all alerts'),
+        ConfigOption('required_tags', ['owner', 'accounting', 'name'], 'array', 'List of required tags'),
+        ConfigOption('s3_non_empty_removal_grace_period', 3, 'int',
+                     'How many days we should set in the bucket policy for non-empty S3 buckets removal')
     )
 
     def __init__(self):

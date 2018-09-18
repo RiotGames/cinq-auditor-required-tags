@@ -3,6 +3,7 @@ import logging
 from botocore.exceptions import ClientError
 from datetime import datetime
 
+from cloud_inquisitor.config import dbconfig
 from cloud_inquisitor.plugins.types.accounts import AWSAccount
 
 from cinq_auditor_required_tags.exceptions import ResourceKillError, ResourceStopError
@@ -163,7 +164,7 @@ def delete_s3_bucket(client, resource):
                 {'Status': 'Enabled',
                  'NoncurrentVersionExpiration': {u'NoncurrentDays': 1},
                  'Filter': {u'Prefix': ''},
-                 'Expiration': {u'Days': 3},
+                 'Expiration': {u'Days': dbconfig.get('grace_period', NS_AUDITOR_REQUIRED_TAGS, 4)},
                  'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 3},
                  'ID': 'cloudInquisitor'}
             ]
