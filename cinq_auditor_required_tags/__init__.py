@@ -134,14 +134,14 @@ class RequiredTagsAuditor(BaseAuditor):
         return non_compliant_resources
 
     def get_resources(self):
-        known_resources = self.get_known_resources_missing_tags()
+        new_issues = self.get_known_resources_missing_tags()
         existing_issues = RequiredTagsIssue.get_all().items()
         known_issues = []
         fixed_issues = []
 
         for existing_issue_id, existing_issue in existing_issues:
             # Check if the existing issue is still persists
-            resource = known_resources.pop(existing_issue_id, None)
+            resource = new_issues.pop(existing_issue_id, None)
             if resource:
                 if resource['missing_tags'] != existing_issue.missing_tags:
                     existing_issue.set_property('missing_tags', resource['missing_tags'])
@@ -151,8 +151,6 @@ class RequiredTagsAuditor(BaseAuditor):
                 known_issues.append(existing_issue)
             else:
                 fixed_issues.append(existing_issue)
-
-        new_issues = {resource_id: resource for resource_id, resource in known_resources.items()}
 
         db.session.commit()
         return known_issues, new_issues, fixed_issues
