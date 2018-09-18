@@ -17,12 +17,11 @@ Configuration Options
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
 | Option name         | Default Value                             | Type   | Description                                                                 |
 +=====================+===========================================+========+=============================================================================+
-+---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
 | alert_settings      | See notes below                           | JSON   | Alert and enforcement settings for supported resources                      |
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
 | always_send_email   | True                                      | bool   | Send emails even in collect mode                                            |
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
-| audit_ignore_tag    | cinq_ignore                               | string | Cinq will ignore alerting/enforcment if resources are tagged with this      |
+| audit_ignore_tag    | cinq_ignore                               | string | Cinq will ignore alerting/enforcement if resources are tagged with this     |
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
 | audit_scope         | aws_ec2_instance                          | string | Select resources (aws_ec2_instance, aws_s3_bucket)                          |
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
@@ -32,7 +31,7 @@ Configuration Options
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
 | email_subject       | Resources missing required tags           | string | Subject of the new issues email notifications                               |
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
-| enabled             | False                                     | bool   | Enable the Reuiqred Tags auditor                                            |
+| enabled             | False                                     | bool   | Enable the Required Tags auditor                                            |
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
 | interval            | 30                                        | int    | How often the auditor executes, in minutes                                  |
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
@@ -48,24 +47,32 @@ Sample alert_settings are specified as follows:
 .. code-block:: json
 
     {
-        "aws_s3_bucket": {
-         "alert": [
+        "*": {
+            "alert": [
                 "0 seconds",
-                "30 seconds",
-                "60 seconds"
+                "15 days"
             ],
-            "stop": "10 minutes",
-            "remove": "20 minutes",
+            "stop": None,
+            "remove": "20 weeks",
+            "scope": []
+        },
+        "aws_s3_bucket": {
+            "alert": [
+                "0 seconds",
+                "30 days"
+            ],
+            "stop": None,
+            "remove": "10 weeks",
             "scope": ["*"]
         },
         "aws_ec2_instance": {
             "alert": [
                 "0 seconds",
-                "30 seconds",
-                "60 seconds"
+                "14 days",
+                "4 weekss"
             ],
-            "stop": "10 minutes",
-            "remove": "20 minutes",
+            "stop": "8 weeks",
+            "remove": "12 weeks",
             "scope": ["enabled-account-1", "enabled-account-2"]
         }
     }
