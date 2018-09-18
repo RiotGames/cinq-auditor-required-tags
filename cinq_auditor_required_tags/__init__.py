@@ -90,7 +90,7 @@ class RequiredTagsAuditor(BaseAuditor):
         actions = [
             *[
                 {
-                    'action': AuditActions.FIX,
+                    'action': AuditActions.FIXED,
                     'action_description': None,
                     'last_alert': issue.last_alert,
                     'issue': issue,
@@ -342,7 +342,7 @@ class RequiredTagsAuditor(BaseAuditor):
                                 # Resource is already stopped, so we are gonna skip the notification for it
                                 continue
 
-                        elif action['action'] == AuditActions.FIX:
+                        elif action['action'] == AuditActions.FIXED:
                             db.session.delete(action['issue'].issue)
 
                         elif action['action'] == AuditActions.ALERT:
@@ -365,7 +365,7 @@ class RequiredTagsAuditor(BaseAuditor):
                             else:
                                 contact = notification_contacts[owner['value']]
 
-                            if action['action'] == AuditActions.FIX:
+                            if action['action'] == AuditActions.FIXED:
                                 notices[contact]['fixed'].append(action)
                             else:
                                 notices[contact]['not_fixed'].append(action)
