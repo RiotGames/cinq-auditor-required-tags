@@ -1,4 +1,5 @@
 import logging
+import json
 
 from botocore.exceptions import ClientError
 from datetime import datetime
@@ -242,7 +243,7 @@ def delete_s3_bucket(client, resource):
 
             try:
                 if not 'cinqDenyObjectUploads' in current_bucket_policy:
-                    bucket.Policy().put(Policy=bucket_policy)
+                    bucket.Policy().put(Policy=json.dumps(bucket_policy))
                     logger.info('Added policy to prevent putObject in s3 bucket {} in {}'.format(
                         resource.resource_id,
                         resource.account
