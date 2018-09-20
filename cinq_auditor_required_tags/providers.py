@@ -227,7 +227,7 @@ def delete_s3_bucket(client, resource):
                         resource.resource_id,
                         resource.account
                     ))
-                    Enforcement.create(resource.resource_id, resource.account_id, 'LIFECYCLE_APPLIED',
+                    Enforcement.create(resource.account_id, resource.resource_id, 'LIFECYCLE_APPLIED',
                                        datetime.now(), metrics)
 
             except ClientError as error:
