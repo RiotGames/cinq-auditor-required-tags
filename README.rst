@@ -42,7 +42,7 @@ Configuration Options
 | required_tags       | ['owner', 'accounting', 'name']           | array  | List of required tags                                                       |
 +---------------------+-------------------------------------------+--------+-----------------------------------------------------------------------------+
 
-Sample alert_settings are specified as follows:
+Example - alert_settings:
 
 .. code-block:: json
 
@@ -69,7 +69,7 @@ Sample alert_settings are specified as follows:
             "alert": [
                 "0 seconds",
                 "14 days",
-                "4 weekss"
+                "4 weeks"
             ],
             "stop": "8 weeks",
             "remove": "12 weeks",
