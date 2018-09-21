@@ -276,7 +276,9 @@ class RequiredTagsAuditor(BaseAuditor):
         stop_schedule = pytimeparse.parse(issue_alert_schedule['stop'])
         remove_schedule = pytimeparse.parse(issue_alert_schedule['remove'])
 
-        if remove_schedule and time_elapsed >= remove_schedule:
+        if self.collect_only:
+            action_item['action'] = AuditActions.IGNORE
+        elif remove_schedule and time_elapsed >= remove_schedule:
             action_item['action'] = AuditActions.REMOVE
             action_item['action_description'] = 'Resource removed'
             action_item['last_alert'] = remove_schedule
