@@ -74,7 +74,6 @@ class RequiredTagsAuditor(BaseAuditor):
             {'type': 'email', 'value': contact} for contact in dbconfig.get('permanent_recipient', self.ns, [])
         ]
         self.email_subject = dbconfig.get('email_subject', self.ns, 'Required tags audit notification')
-        self.grace_period = dbconfig.get('grace_period', self.ns, 4)
         self.partial_owner_match = dbconfig.get('partial_owner_match', self.ns, True)
         self.audit_ignore_tag = dbconfig.get('audit_ignore_tag', NS_AUDITOR_REQUIRED_TAGS)
         self.alert_schedule = dbconfig.get('alert_settings', NS_AUDITOR_REQUIRED_TAGS)
@@ -158,9 +157,6 @@ class RequiredTagsAuditor(BaseAuditor):
 
         new_issues = {
             resource_id: resource for resource_id, resource in known_resources.items()
-            if
-            ((datetime.utcnow() - resource[
-                'resource'].resource_creation_date).total_seconds() // 3600) >= self.grace_period
         }
 
         db.session.commit()
@@ -169,6 +165,7 @@ class RequiredTagsAuditor(BaseAuditor):
     def create_new_issues(self, new_issues):
         try:
             for non_compliant_resource in new_issues.values():
+
                 properties = {
                     'resource_id': non_compliant_resource['resource_id'],
                     'account_id': non_compliant_resource['resource'].account_id,
