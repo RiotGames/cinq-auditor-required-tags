@@ -411,9 +411,11 @@ class RequiredTagsAuditor(BaseAuditor):
         if self.audit_ignore_tag.lower() in resource_tags:
             return missing_tags, notes
 
+        '''
         # Do not audit this resource if it is still in grace period
         if (datetime.utcnow() - resource.resource_creation_date).total_seconds() // 3600 < self.grace_period:
             return missing_tags, notes
+        '''
 
         # Check if the resource is missing required tags
         for key in [tag.lower() for tag in self.required_tags]:
