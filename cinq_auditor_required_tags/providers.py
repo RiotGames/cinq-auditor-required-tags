@@ -4,6 +4,7 @@ import json
 from botocore.exceptions import ClientError
 from datetime import datetime
 
+from cloud_inquisitor.config import dbconfig
 from cloud_inquisitor.plugins.types.accounts import AWSAccount
 
 from cinq_auditor_required_tags.exceptions import ResourceKillError, ResourceStopError
@@ -164,7 +165,9 @@ def delete_s3_bucket(client, resource):
                 {'Status': 'Enabled',
                  'NoncurrentVersionExpiration': {u'NoncurrentDays': 1},
                  'Filter': {u'Prefix': ''},
-                 'Expiration': {u'Days': 3},
+                 'Expiration': {
+                     u'Days': dbconfig.get('lifecycle_expiration_days', NS_AUDITOR_REQUIRED_TAGS, 3)
+                 },
                  'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 3},
                  'ID': 'cloudInquisitor'}
             ]
@@ -242,7 +245,7 @@ def delete_s3_bucket(client, resource):
                     current_bucket_policy = 'missing'
 
             try:
-                if not 'cinqDenyObjectUploads' in current_bucket_policy:
+                if 'cinqDenyObjectUploads' not in current_bucket_policy:
                     bucket.Policy().put(Policy=json.dumps(bucket_policy))
                     logger.info('Added policy to prevent putObject in s3 bucket {} in {}'.format(
                         resource.resource_id,
