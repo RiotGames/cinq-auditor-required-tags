@@ -32,7 +32,7 @@ class RequiredTagsAuditor(BaseAuditor):
                     'alert': ['0 seconds', '3 weeks', '27 days'],
                     'stop': '4 weeks',
                     'remove': '12 weeks',
-                    'scope': []
+                    'scope': ['*']
                 }
             },
             'json',
