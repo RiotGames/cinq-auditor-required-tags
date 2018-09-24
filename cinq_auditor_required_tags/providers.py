@@ -165,7 +165,9 @@ def delete_s3_bucket(client, resource):
                 {'Status': 'Enabled',
                  'NoncurrentVersionExpiration': {u'NoncurrentDays': 1},
                  'Filter': {u'Prefix': ''},
-                 'Expiration': {u'Days': dbconfig.get('grace_period', NS_AUDITOR_REQUIRED_TAGS, 4)},
+                 'Expiration': {
+                     u'Days': dbconfig.get('lifecycle_expiration_days', NS_AUDITOR_REQUIRED_TAGS, 3)
+                 },
                  'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 3},
                  'ID': 'cloudInquisitor'}
             ]

@@ -53,12 +53,12 @@ class RequiredTagsAuditor(BaseAuditor):
         ConfigOption('email_subject', 'Required tags audit notification', 'string',
                      'Subject of the email notification'),
         ConfigOption('enabled', False, 'bool', 'Enable the Required Tags auditor'),
-        ConfigOption('grace_period', 4, 'int', 'Only audit resources X minutes after being created'),
+        #ConfigOption('grace_period', 4, 'int', 'Only audit resources X minutes after being created'),
         ConfigOption('interval', 30, 'int', 'How often the auditor executes, in minutes.'),
         ConfigOption('partial_owner_match', True, 'bool', 'Allow partial matches of the Owner tag'),
         ConfigOption('permanent_recipient', [], 'array', 'List of email addresses to receive all alerts'),
         ConfigOption('required_tags', ['owner', 'accounting', 'name'], 'array', 'List of required tags'),
-        ConfigOption('s3_non_empty_removal_grace_period', 3, 'int',
+        ConfigOption('lifecycle_expiration_days', 3, 'int',
                      'How many days we should set in the bucket policy for non-empty S3 buckets removal')
     )
 
