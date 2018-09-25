@@ -222,6 +222,12 @@ def delete_s3_bucket(client, resource):
                 rules_exists = False
 
             try:
+                current_bucket_policy = bucket.Policy().policy
+            except ClientError as error:
+                if error.response['Error']['Code'] == 'NoSuchBucketPolicy':
+                    current_bucket_policy = 'missing'
+
+            try:
                 if not rules_exists:
                     # Grab S3 Metrics before lifecycle policies start removing objects
 
@@ -233,18 +239,6 @@ def delete_s3_bucket(client, resource):
                     Enforcement.create(resource.account_id, resource.resource_id, 'LIFECYCLE_APPLIED',
                                        datetime.now(), metrics)
 
-            except ClientError as error:
-                logger.error('Problem applying the lifcycle configuration to bucket {} / account {} / {}'
-                             .format(resource.resource_id, resource.account_id, error.response['Error']['Code']))
-
-            try:
-                current_bucket_policy = bucket.Policy().policy
-
-            except ClientError as error:
-                if error.response['Error']['Code'] == 'NoSuchBucketPolicy':
-                    current_bucket_policy = 'missing'
-
-            try:
                 if 'cinqDenyObjectUploads' not in current_bucket_policy:
                     bucket.Policy().put(Policy=json.dumps(bucket_policy))
                     logger.info('Added policy to prevent putObject in s3 bucket {} in {}'.format(
@@ -252,11 +246,17 @@ def delete_s3_bucket(client, resource):
                         resource.account
                     ))
 
-                return False
 
             except ClientError as error:
-                logger.error('Problem applying the bucket policy to bucket {} / account {} / {}'
+                logger.error('Problem applying the bucket policy or lifecycle configuration to bucket {} / account {} / {}'
                              .format(resource.resource_id, resource.account_id, error.response['Error']['Code']))
+
+            if rules_exists and 'cinqDenyObjectUploads' in current_bucket_policy:
+                #We're waiting for the lifecycle policy to delete data
+                return False
+            else:
+                return True
+
 
     except Exception as error:
         logger.info(
