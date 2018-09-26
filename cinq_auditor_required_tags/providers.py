@@ -7,7 +7,7 @@ from datetime import datetime
 from cloud_inquisitor.config import dbconfig
 from cloud_inquisitor.plugins.types.accounts import AWSAccount
 
-from cinq_auditor_required_tags.exceptions import ResourceKillError, ResourceStopError
+from cinq_auditor_required_tags.exceptions import ResourceKillError, ResourceStopError, ResourceActionError
 from cloud_inquisitor import get_aws_session
 from cloud_inquisitor.constants import NS_AUDITOR_REQUIRED_TAGS
 from cloud_inquisitor.log import auditlog
@@ -253,11 +253,10 @@ def delete_s3_bucket(client, resource):
 
             if rules_exists and 'cinqDenyObjectUploads' in current_bucket_policy:
                 #We're waiting for the lifecycle policy to delete data
-                return False
-            else:
-                return True
+                raise ResourceActionError({'msg': 'wait_for_deletion'})
 
-
+    except ResourceActionError as error:
+        raise ResourceActionError(error)
     except Exception as error:
         logger.info(
             'Failed to delete s3 bucket {} in {}, error is {}'.format(resource.resource_id, resource.account, error))
