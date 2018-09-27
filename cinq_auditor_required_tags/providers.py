@@ -99,6 +99,7 @@ def delete_s3_bucket(client, resource):
     for prop in resource.properties:
         if prop.name == 'metrics':
             metrics = prop.value
+            break
     else:
         metrics = {}
 
@@ -150,8 +151,15 @@ def delete_s3_bucket(client, resource):
 
 
 def delete_ebs_volume(client, resource):
+    for prop in resource.properties:
+        if prop.name == 'size':
+            metrics = {'size': prop.value}
+            break
+    else:
+        metrics = {}
+
     client.delete_volume(VolumeId=resource.resource_id)
-    return ActionStatus.SUCCEED, {}
+    return ActionStatus.SUCCEED, metrics
 
 
 action_mapper = {
