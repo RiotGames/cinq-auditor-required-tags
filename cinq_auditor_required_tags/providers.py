@@ -96,8 +96,6 @@ def terminate_ec2_instance(client, resource):
 
 
 def delete_s3_bucket(client, resource):
-    session = get_aws_session(AWSAccount(resource.account))
-    bucket = session.resource('s3', resource.location).Bucket(resource.resource_id)
     for prop in resource.properties:
         if prop.name == 'metrics':
             metrics = prop.value
@@ -118,19 +116,19 @@ def delete_s3_bucket(client, resource):
         ]
     }
 
-    objects = list(bucket.objects.limit(count=1))
-    versions = list(bucket.object_versions.limit(count=1))
-    if not objects and not versions:
-        bucket.delete()
+    has_objects = client.list_objects_v2(Bucket=resource.resource_id, MaxKeys=1).get('Contents', None)
+    has_versions = client.list_object_versions(Bucket=resource.resource_id, MaxKeys=1).get('Versions', None)
+    if not has_objects and not has_versions:
+        client.delete_bucket(Bucket=resource.resource_id)
         return ActionStatus.SUCCEED, metrics
 
-    policy_exists = s3_removal_policy_exists(bucket)
-    lifecycle_policy_exists = s3_removal_lifecycle_policy_exists(bucket)
+    policy_exists = s3_removal_policy_exists(client, resource)
+    lifecycle_policy_exists = s3_removal_lifecycle_policy_exists(client, resource)
     if policy_exists and lifecycle_policy_exists:
         return ActionStatus.IGNORED, {}
 
     if not policy_exists:
-        bucket.Policy().put(Policy=json.dumps(bucket_policy))
+        client.put_bucket_policy(Bucket=resource.resource_id, Policy=json.dumps(bucket_policy))
         logger.info('Added policy to prevent putObject in s3 bucket {} in {}'.format(
             resource.resource_id,
             resource.account
@@ -139,13 +137,21 @@ def delete_s3_bucket(client, resource):
     if not lifecycle_policy_exists:
         # Grab S3 Metrics before lifecycle policies start removing objects
 
-        bucket.LifecycleConfiguration().put(LifecycleConfiguration=S3_REMOVAL_LIFECYCLE_POLICY)
+        client.put_bucket_lifecycle_configuration(
+            Bucket=resource.resource_id,
+            LifecycleConfiguration=S3_REMOVAL_LIFECYCLE_POLICY
+        )
         logger.info('Added policy to delete bucket contents in s3 bucket {} in {}'.format(
             resource.resource_id,
             resource.account
         ))
 
     return ActionStatus.SUCCEED, metrics
+
+
+def delete_ebs_volume(client, resource):
+    client.delete_volume(VolumeId=resource.resource_id)
+    return ActionStatus.SUCCEED, {}
 
 
 action_mapper = {
@@ -158,5 +164,10 @@ action_mapper = {
         'service_name': 's3',
         AuditActions.STOP: None,
         AuditActions.REMOVE: delete_s3_bucket
+    },
+    'aws_ebs_volume': {
+        'service_name': 'ec2',
+        AuditActions.STOP: None,
+        AuditActions.REMOVE: delete_ebs_volume
     }
 }
