@@ -259,10 +259,28 @@ def delete_s3_bucket(client, resource):
         raise ResourceActionError(error)
     except Exception as error:
         logger.info(
-            'Failed to delete s3 bucket {} in {}, error is {}'.format(resource.resource_id, resource.account, error))
+            'Failed to delete s3 bucket {} in {}, error is {}'.format(resource.resource_id, resource.account, error)
+        )
 
         raise ResourceKillError(
             'Failed to delete s3 bucket {} in {}. Reason: {}'.format(resource.resource_id, resource.account, error)
+        )
+
+def delete_rds_cluster(client, resource):
+    try:
+        session = get_aws_session(AWSAccount(resource.account))
+        client.delete_db_cluster(
+                DBClusterIdentifier=resource.resource_id
+                SkipFinalSnapshot=False,
+                FinalDBSnapshotIdentifier='{} final snapshot'.format(resource.resource_id)
+        )
+
+    except Exception as error:
+        logger.info(
+                'Failed to delete RDS cluster {} in {}, error is {}'.format(resource.resource_id, resource.account, error)
+
+        raise ResourceKillError(
+                'Failed to delete RDS cluster {} in {}, Reason: {}'.format(resource.resource_id, resource.account, error)
         )
 
 
@@ -276,5 +294,10 @@ action_mapper = {
         'service_name': 's3',
         'stop': None,
         'kill': delete_s3_bucket
+    },
+    'aws_rds_cluster': {
+        'service_name': 'rds',
+        'stop': None,
+        'kill': delete_rds_cluster
     }
 }
