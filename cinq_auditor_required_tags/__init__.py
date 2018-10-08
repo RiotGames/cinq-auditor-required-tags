@@ -53,7 +53,7 @@ class RequiredTagsAuditor(BaseAuditor):
         ConfigOption('email_subject', 'Required tags audit notification', 'string',
                      'Subject of the email notification'),
         ConfigOption('enabled', False, 'bool', 'Enable the Required Tags auditor'),
-        #ConfigOption('grace_period', 4, 'int', 'Only audit resources X minutes after being created'),
+        ConfigOption('grace_period', 4, 'int', 'Only audit resources X minutes after being created'),
         ConfigOption('interval', 30, 'int', 'How often the auditor executes, in minutes.'),
         ConfigOption('partial_owner_match', True, 'bool', 'Allow partial matches of the Owner tag'),
         ConfigOption('permanent_recipient', [], 'array', 'List of email addresses to receive all alerts'),
@@ -73,6 +73,7 @@ class RequiredTagsAuditor(BaseAuditor):
             {'type': 'email', 'value': contact} for contact in dbconfig.get('permanent_recipient', self.ns, [])
         ]
         self.email_subject = dbconfig.get('email_subject', self.ns, 'Required tags audit notification')
+        self.grace_period = dbconfig.get('grace_period', self.ns, 4)
         self.partial_owner_match = dbconfig.get('partial_owner_match', self.ns, True)
         self.audit_ignore_tag = dbconfig.get('audit_ignore_tag', NS_AUDITOR_REQUIRED_TAGS)
         self.alert_schedule = dbconfig.get('alert_settings', NS_AUDITOR_REQUIRED_TAGS)
@@ -151,8 +152,14 @@ class RequiredTagsAuditor(BaseAuditor):
             else:
                 fixed_issues.append(existing_issue)
 
+        new_issues = {
+            resource_id: resource for resource_id, resource in found_issues.items()
+            if
+            ((datetime.utcnow() - resource[
+                'resource'].resource_creation_date).total_seconds() // 3600) >= self.grace_period
+        }
         db.session.commit()
-        return known_issues, found_issues, fixed_issues
+        return known_issues, new_issues, fixed_issues
 
     def create_new_issues(self, new_issues):
         try:
