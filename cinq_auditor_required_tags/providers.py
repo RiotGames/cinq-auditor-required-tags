@@ -2,7 +2,7 @@ import logging
 import json
 
 from botocore.exceptions import ClientError
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from cloud_inquisitor.config import dbconfig
 from cloud_inquisitor.plugins.types.accounts import AWSAccount
@@ -159,6 +159,7 @@ def delete_s3_bucket(client, resource):
     try:
         session = get_aws_session(AWSAccount(resource.account))
         bucket = session.resource('s3', resource.location).Bucket(resource.resource_id)
+        days_until_expiry = dbconfig.get('lifecycle_expiration_days', NS_AUDITOR_REQUIRED_TAGS, 3)
 
         lifecycle_policy = {
             'Rules': [
@@ -166,7 +167,7 @@ def delete_s3_bucket(client, resource):
                  'NoncurrentVersionExpiration': {u'NoncurrentDays': 1},
                  'Filter': {u'Prefix': ''},
                  'Expiration': {
-                     u'Days': dbconfig.get('lifecycle_expiration_days', NS_AUDITOR_REQUIRED_TAGS, 3)
+                     'Date': datetime.utcnow() + timedelta(days=days_until_expiry)
                  },
                  'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 3},
                  'ID': 'cloudInquisitor'}
