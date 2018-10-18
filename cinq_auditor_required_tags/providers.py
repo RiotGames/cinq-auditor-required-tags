@@ -167,7 +167,9 @@ def delete_s3_bucket(client, resource):
                  'NoncurrentVersionExpiration': {u'NoncurrentDays': 1},
                  'Filter': {u'Prefix': ''},
                  'Expiration': {
-                     'Date': datetime.utcnow() + timedelta(days=days_until_expiry)
+                     'Date': datetime.utcnow().replace(
+                         hour=0, minute=0, second=0, microsecond=0
+                     ) + timedelta(days=days_until_expiry)
                  },
                  'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 3},
                  'ID': 'cloudInquisitor'}
