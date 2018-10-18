@@ -51,7 +51,7 @@ class RequiredTagsAuditor(BaseAuditor):
         ConfigOption('email_subject', 'Required tags audit notification', 'string',
                      'Subject of the email notification'),
         ConfigOption('enabled', False, 'bool', 'Enable the Required Tags auditor'),
-        #ConfigOption('grace_period', 4, 'int', 'Only audit resources X minutes after being created'),
+        ConfigOption('grace_period', 4, 'int', 'Only audit resources X minutes after being created'),
         ConfigOption('interval', 30, 'int', 'How often the auditor executes, in minutes.'),
         ConfigOption('partial_owner_match', True, 'bool', 'Allow partial matches of the Owner tag'),
         ConfigOption('permanent_recipient', [], 'array', 'List of email addresses to receive all alerts'),

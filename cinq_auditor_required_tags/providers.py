@@ -1,12 +1,13 @@
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
-from constants import ActionStatus, S3_REMOVAL_LIFECYCLE_POLICY
+from constants import ActionStatus
 from utils import s3_removal_policy_exists, s3_removal_lifecycle_policy_exists
 
 from cloud_inquisitor import get_aws_session
-from cloud_inquisitor.constants import AuditActions
+from cloud_inquisitor.config import dbconfig
+from cloud_inquisitor.constants import AuditActions, NS_AUDITOR_REQUIRED_TAGS
 from cloud_inquisitor.log import auditlog
 from cloud_inquisitor.plugins.types.accounts import AWSAccount
 from cloud_inquisitor.plugins.types.enforcements import Enforcement
@@ -122,6 +123,21 @@ def delete_s3_bucket(client, resource):
         ]
     }
 
+    s3_removal_lifecycle_policy = {
+        'Rules': [
+            {'Status': 'Enabled',
+             'NoncurrentVersionExpiration': {u'NoncurrentDays': 1},
+             'Filter': {u'Prefix': ''},
+             'Expiration': {
+                 u'Date': datetime.utcnow().replace(
+                         hour=0, minute=0, second=0, microsecond=0
+                     ) + timedelta(days=dbconfig.get('lifecycle_expiration_days', NS_AUDITOR_REQUIRED_TAGS, 3))
+             },
+             'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 3},
+             'ID': 'cloudInquisitor'}
+        ]
+    }
+
     has_objects = client.list_objects_v2(Bucket=resource.id, MaxKeys=1).get('Contents', None)
     has_versions = client.list_object_versions(Bucket=resource.id, MaxKeys=1).get('Versions', None)
     if not has_objects and not has_versions:
@@ -145,7 +161,7 @@ def delete_s3_bucket(client, resource):
 
         client.put_bucket_lifecycle_configuration(
             Bucket=resource.id,
-            LifecycleConfiguration=S3_REMOVAL_LIFECYCLE_POLICY
+            LifecycleConfiguration=s3_removal_lifecycle_policy
         )
         logger.info('Added policy to delete bucket contents in s3 bucket {} in {}'.format(
             resource.id,
