@@ -94,19 +94,13 @@ def terminate_ec2_instance(client, resource):
     return ActionStatus.SUCCEED, {'instance_type': resource.instance_type, 'public_ip': resource.public_ip}
 
 
-def delete_s3_bucket(client, resource):
-    """Delete an S3 bucket
+def stop_s3_bucket(client, resource):
+    """
+    Stop an S3 bucket from being used
 
-    This function will try to delete an S3 bucket, if the bucket is not empty, it will
+    This function will try to
         1. Add lifecycle policy to make sure objects inside it will expire
         2. Block certain access to the bucket
-
-    Args:
-        client (:obj:`boto3.session.Session.client`): A boto3 client object
-        resource (:obj:`Resource`): The resource object to terminate
-
-    Returns:
-        `ActionStatus`
     """
 
     bucket_policy = {
@@ -130,19 +124,13 @@ def delete_s3_bucket(client, resource):
              'Filter': {u'Prefix': ''},
              'Expiration': {
                  u'Date': datetime.utcnow().replace(
-                         hour=0, minute=0, second=0, microsecond=0
-                     ) + timedelta(days=dbconfig.get('lifecycle_expiration_days', NS_AUDITOR_REQUIRED_TAGS, 3))
+                     hour=0, minute=0, second=0, microsecond=0
+                 ) + timedelta(days=dbconfig.get('lifecycle_expiration_days', NS_AUDITOR_REQUIRED_TAGS, 3))
              },
              'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 3},
              'ID': 'cloudInquisitor'}
         ]
     }
-
-    has_objects = client.list_objects_v2(Bucket=resource.id, MaxKeys=1).get('Contents', None)
-    has_versions = client.list_object_versions(Bucket=resource.id, MaxKeys=1).get('Versions', None)
-    if not has_objects and not has_versions:
-        client.delete_bucket(Bucket=resource.id)
-        return ActionStatus.SUCCEED, resource.metrics()
 
     policy_exists = s3_removal_policy_exists(client, resource)
     lifecycle_policy_exists = s3_removal_lifecycle_policy_exists(client, resource)
@@ -171,6 +159,30 @@ def delete_s3_bucket(client, resource):
     return ActionStatus.SUCCEED, resource.metrics()
 
 
+def delete_s3_bucket(client, resource):
+    """Delete an S3 bucket
+
+    This function will try to delete an S3 bucket
+
+    Args:
+        client (:obj:`boto3.session.Session.client`): A boto3 client object
+        resource (:obj:`Resource`): The resource object to terminate
+
+    Returns:
+        `ActionStatus`
+    """
+
+    client.delete_bucket(Bucket=resource.id)
+    return ActionStatus.SUCCEED, resource.metrics()
+
+
+def stop_ebs_volume(client, resource):
+    """
+    Stop an EBS Volume from being used
+    """
+    pass
+
+
 def delete_ebs_volume(client, resource):
     """Delete an EBS Volume
 
@@ -196,12 +208,12 @@ action_mapper = {
     },
     'aws_s3_bucket': {
         'service_name': 's3',
-        AuditActions.STOP: None,
+        AuditActions.STOP: stop_s3_bucket,
         AuditActions.REMOVE: delete_s3_bucket
     },
     'aws_ebs_volume': {
         'service_name': 'ec2',
-        AuditActions.STOP: None,
+        AuditActions.STOP: stop_ebs_volume,
         AuditActions.REMOVE: delete_ebs_volume
     }
 }
