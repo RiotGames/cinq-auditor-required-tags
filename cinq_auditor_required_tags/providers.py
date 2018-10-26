@@ -172,14 +172,14 @@ def delete_s3_bucket(client, resource):
                      ) + timedelta(days=days_until_expiry)
                  },
                  'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 3},
-                 'ID': 'cloudInquisitor'},
+                 'ID': 'cinqRemoveObjectsAndVersions'},
 
                 {'Status': 'Enabled',
                  'Filter': {u'Prefix': ''},
                  'Expiration': {
                      'ExpiredObjectDeleteMarker': True
                  },
-                 'ID': 'cloudInquisitor2'}
+                 'ID': 'cinqRemoveDeletedExpiredMarkers'}
             ]
         }
 
@@ -223,7 +223,7 @@ def delete_s3_bucket(client, resource):
             try:
                 rules = bucket.LifecycleConfiguration().rules
                 for rule in rules:
-                    if rule['ID'] == 'cloudInquisitor2':
+                    if rule['ID'] == 'cinqRemoveDeletedExpiredMarkers':
                         rules_exists = True
                         break
                 else:
