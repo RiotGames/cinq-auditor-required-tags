@@ -160,19 +160,26 @@ def delete_s3_bucket(client, resource):
         session = get_aws_session(AWSAccount(resource.account))
         bucket = session.resource('s3', resource.location).Bucket(resource.resource_id)
         days_until_expiry = dbconfig.get('lifecycle_expiration_days', NS_AUDITOR_REQUIRED_TAGS, 3)
-
+        # Separate rule for Object Markers is needed and can't be combined into a single rule per AWS API
         lifecycle_policy = {
             'Rules': [
                 {'Status': 'Enabled',
-                 'NoncurrentVersionExpiration': {u'NoncurrentDays': 1},
+                 'NoncurrentVersionExpiration': {u'NoncurrentDays': days_until_expiry},
                  'Filter': {u'Prefix': ''},
                  'Expiration': {
                      'Date': datetime.utcnow().replace(
                          hour=0, minute=0, second=0, microsecond=0
                      ) + timedelta(days=days_until_expiry)
                  },
-                 'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 3},
-                 'ID': 'cloudInquisitor'}
+                 'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': days_until_expiry},
+                 'ID': 'cinqRemoveObjectsAndVersions'},
+
+                {'Status': 'Enabled',
+                 'Filter': {u'Prefix': ''},
+                 'Expiration': {
+                     'ExpiredObjectDeleteMarker': True
+                 },
+                 'ID': 'cinqRemoveDeletedExpiredMarkers'}
             ]
         }
 
@@ -216,7 +223,7 @@ def delete_s3_bucket(client, resource):
             try:
                 rules = bucket.LifecycleConfiguration().rules
                 for rule in rules:
-                    if rule['ID'] == 'cloudInquisitor':
+                    if rule['ID'] == 'cinqRemoveDeletedExpiredMarkers':
                         rules_exists = True
                         break
                 else:
@@ -235,7 +242,7 @@ def delete_s3_bucket(client, resource):
                     # Grab S3 Metrics before lifecycle policies start removing objects
 
                     bucket.LifecycleConfiguration().put(LifecycleConfiguration=lifecycle_policy)
-                    logger.info('Added policy to delete bucket contents in s3 bucket {} in {}'.format(
+                    logger.info('Added policies to delete bucket contents in s3 bucket {} in {}'.format(
                         resource.resource_id,
                         resource.account
                     ))
@@ -249,13 +256,13 @@ def delete_s3_bucket(client, resource):
                         resource.account
                     ))
 
-
             except ClientError as error:
-                logger.error('Problem applying the bucket policy or lifecycle configuration to bucket {} / account {} / {}'
-                             .format(resource.resource_id, resource.account_id, error.response['Error']['Code']))
+                logger.error(
+                    'Problem applying the bucket policy or lifecycle configuration to bucket {} / account {} / {}'
+                    .format(resource.resource_id, resource.account_id, error.response['Error']['Code']))
 
             if rules_exists and 'cinqDenyObjectUploads' in current_bucket_policy:
-                #We're waiting for the lifecycle policy to delete data
+                # We're waiting for the lifecycle policy to delete data
                 raise ResourceActionError({'msg': 'wait_for_deletion'})
 
     except ResourceActionError as error:
