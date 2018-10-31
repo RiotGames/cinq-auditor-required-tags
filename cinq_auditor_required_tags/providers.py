@@ -164,14 +164,14 @@ def delete_s3_bucket(client, resource):
         lifecycle_policy = {
             'Rules': [
                 {'Status': 'Enabled',
-                 'NoncurrentVersionExpiration': {u'NoncurrentDays': 1},
+                 'NoncurrentVersionExpiration': {u'NoncurrentDays': days_until_expiry},
                  'Filter': {u'Prefix': ''},
                  'Expiration': {
                      'Date': datetime.utcnow().replace(
                          hour=0, minute=0, second=0, microsecond=0
                      ) + timedelta(days=days_until_expiry)
                  },
-                 'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': 3},
+                 'AbortIncompleteMultipartUpload': {u'DaysAfterInitiation': days_until_expiry},
                  'ID': 'cinqRemoveObjectsAndVersions'},
 
                 {'Status': 'Enabled',
